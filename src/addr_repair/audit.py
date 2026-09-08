@@ -21,6 +21,7 @@ def write_audit_record(
     schema_ok: bool,
     latency_ms: float,
     score: dict | None = None,
+    semantic_errors: list[str] | None = None,
 ) -> dict:
     entry = {
         "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -32,6 +33,8 @@ def write_audit_record(
         "changed_fields": [c["field"] for c in output.get("changes", [])],
         "needs_review": output.get("needs_review", []),
         "schema_ok": schema_ok,
+        "semantic_ok": not semantic_errors,
+        "semantic_errors": semantic_errors or [],
         "latency_ms": round(latency_ms, 1),
         "score": score,
     }

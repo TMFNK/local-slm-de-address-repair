@@ -17,7 +17,7 @@ sys.path.insert(0, "src")
 
 from addr_repair.audit import write_audit_record  # noqa: E402
 from addr_repair.rules import repair_with_rules  # noqa: E402
-from addr_repair.schema import validate_output  # noqa: E402
+from addr_repair.schema import validate_output, validate_output_semantics  # noqa: E402
 
 
 def main() -> None:
@@ -43,10 +43,12 @@ def main() -> None:
             latency_ms = (time.perf_counter() - started) * 1000
             output = {"clean_record": repaired, "changes": changes, "needs_review": needs_review}
             ok, _ = validate_output(output)
+            semantic_errors = validate_output_semantics(dirty, output)
             write_audit_record(
                 args.out, dirty, output,
                 model_rev="rules-floor-v1", prompt_rev="n/a",
                 schema_ok=ok, latency_ms=latency_ms,
+                semantic_errors=semantic_errors,
             )
             n += 1
     print(f"[run_baseline] wrote {n} audit records to {args.out}")

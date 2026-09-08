@@ -9,3 +9,13 @@ Same 2,000 frozen test records for rules floor, base MiniCPM5, and SFT MiniCPM5.
 - Cost: model-load time, median + p95 record time, peak memory on M2 Air
 
 Exact-value and normalized-value scores stay separate when they disagree. After reading the frozen result: no prompt, normalizer, model, or test-data changes.
+
+The scorer also reports per-field counts for correct repairs, wrong repairs,
+missed repairs, correct abstentions, and clean-field damage. Review precision
+means that the reviewed input field had no usable value in the dirty record;
+it is not inferred from whether the paired gold record happens to be empty.
+
+JSON Schema validation checks response shape and types. Semantic validation
+then checks that each change agrees with the dirty input and returned
+`clean_record`, that reviewed fields are unchanged, and that every changed
+field has an audit entry.
