@@ -1,4 +1,4 @@
-"""Frozen local eval on M2 Air via llama.cpp Q4. Same runtime for base + tuned.
+"""Frozen local eval via llama.cpp. Same runtime for base + tuned.
 
 Usage:
     uv run python scripts/evaluate_local.py --config configs/model.yaml --system rules|sft|base

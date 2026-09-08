@@ -1,12 +1,40 @@
-# Repro
+# Reproduction
 
-1. `uv sync`
-2. Download the Zenodo release from `configs/data.yaml`; record URL, date, checksum.
-3. `uv run python scripts/prepare_data.py --config configs/data.yaml`
-4. `uv run python scripts/run_baseline.py --config configs/model.yaml` (smoke gate)
-5. Open `notebooks/colab_sft.ipynb` on Colab GPU; it calls `scripts/train_sft.py`. Save checkpoint hashes.
-6. Convert + quantize adapter to GGUF Q4 with the commands in the notebook.
-7. `uv run python scripts/evaluate_local.py --config configs/model.yaml` on the M2 Air.
-8. `uv run python scripts/make_report.py --evals evals/frozen-test/`
+## Current implementation
 
-Pin record: Python, TRL, Transformers, PEFT, llama.cpp rev, MiniCPM5 rev, dataset release — all in configs + manifests + `uv.lock`.
+The repository is built in evaluation-first steps. Step 1 is runnable:
+
+```bash
+uv sync
+uv run pytest
+uv run ruff check src scripts tests
+```
+
+The rules-floor smoke runner is the first experiment gate:
+
+```bash
+uv run python scripts/run_baseline.py --config configs/model.yaml
+```
+
+## Planned experiment
+
+1. Download the Zenodo release from `configs/data.yaml`; record URL, date,
+   and checksum.
+2. Run `scripts/prepare_data.py` to create manifests, splits, and the smoke
+   fixture.
+3. Run the rules floor and base-model smoke evaluation.
+4. Open `notebooks/colab_sft.ipynb`; it calls `scripts/train_sft.py`.
+5. Select the checkpoint using validation data only and save checkpoint hashes.
+6. Merge the adapter into the base model, then convert the merged checkpoint
+   to GGUF using a pinned `llama.cpp` revision.
+7. Run the same frozen test set through rules, base, and SFT systems.
+8. Generate the report with raw-output and configuration hashes.
+
+The planned commands are not all implemented yet. Do not treat a printed
+placeholder as an experiment result.
+
+## Pin record
+
+Record Python, TRL, Transformers, PEFT, `llama.cpp` revision, MiniCPM5
+revision, dataset release, prompt revision, decoder settings, and checkpoint
+hashes in configs, manifests, and `uv.lock`.

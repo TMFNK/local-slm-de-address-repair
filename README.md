@@ -1,41 +1,54 @@
 # local-slm-de-address-repair
 
-Fine-tune `openbmb/MiniCPM5-1B` to repair messy German address records into validated JSON, run it locally on an M2 Air (8 GB), and show where it repairs correctly, damages clean fields, or asks for human review.
+Fine-tune `openbmb/MiniCPM5-1B` to repair messy German address records into validated JSON, and measure where it repairs correctly, damages clean fields, or asks for human review.
 
-v1 scope: LoRA supervised fine-tuning only. No GRPO. No invented missing data, no geocoding, no entity matching, no fraud work.
+Version 1 uses LoRA supervised fine-tuning. It does not invent missing address data, geocode records, or perform entity matching.
 
-## Planned workflow
+## Project status
+
+Step 1 is complete: the rules floor, field-level scorer, JSON Schema
+validation, semantic output validation, and audit fields are implemented and
+tested. Dataset preparation, model inference, SFT training, and frozen
+evaluation remain scaffold work.
+
+## Task
+
+Input: one dirty German named-address record.
+
+Output: a normalized record, field-level change list, and `needs_review`
+fields where the input does not provide enough evidence.
+
+The system compares a deterministic rules floor, the untuned base model, and
+the SFT model on the same held-out records.
+
+## Quick start
 
 ```bash
 uv sync
-uv run python scripts/prepare_data.py --config configs/data.yaml
-uv run python scripts/run_baseline.py --config configs/model.yaml  # rules floor
-uv run python scripts/train_sft.py --config configs/train_colab.yaml   # Colab GPU
-uv run python scripts/evaluate_local.py --config configs/model.yaml    # M2 Air, llama.cpp Q4
-uv run python scripts/make_report.py --evals evals/frozen-test/
+uv run pytest
+uv run ruff check src scripts tests
 ```
 
-Full steps: `docs/REPRO.md`. What we measure: `docs/EVAL.md`. Splits: `docs/SPLITS.md`.
+The planned experiment workflow is documented in `docs/REPRO.md`. The
+preparation, training, evaluation, and report commands will become runnable as
+the remaining scaffold steps are implemented.
 
-The repository is being implemented in evaluation-first steps. Step 1 is
-complete: the rules-floor path, field-level scorer, JSON Schema validation,
-semantic output validation, and audit fields are implemented and tested.
-Dataset preparation, MiniCPM5 inference, SFT training, and frozen local
-evaluation remain scaffold work until their commands are implemented.
-
-## Data: do not commit raw records
-
-Raw `dirty.csv` / `clean.csv` never go into git. Download the published Zenodo release of [Clean Me If You Can](https://github.com/D2IP-TUB/Clean-Me-If-You-Can) during setup, record checksum + URL + date in your split manifest.
-
-- Source data: OpenStreetMap contributors, ODbL 1.0.
-- This repo keeps only split manifests (hashes), a 100-record smoke fixture, code, configs, and metrics.
-- `data/` is gitignored. See `.gitignore`.
-
-## Systems compared (same frozen test set)
+## Evaluation design
 
 1. **Rules floor** — deterministic whitespace, casing, Unicode, abbreviation normalizer.
 2. **Base** — untuned MiniCPM5-1B + production prompt + schema check + review policy.
 3. **SFT** — same model after LoRA fine-tuning, checkpoint picked on validation only.
+
+Metrics are calculated against paired dirty and clean records:
+
+- repair precision, recall, and F1;
+- clean-field damage rate;
+- correct abstention and review precision;
+- schema and semantic validity;
+- per-field error counts;
+- latency and model resource measurements once the runtime is implemented.
+
+See `docs/EVAL.md` for the scoring definitions.
 
 ## Output contract and audit
 
@@ -49,18 +62,23 @@ Every run appends one JSONL audit record per input containing the input hash,
 model and prompt revisions, output, schema result, semantic result, latency,
 and score when gold exists.
 
-Run the implemented test and lint checks with:
+## Reproduction and data
 
-```bash
-uv run pytest
-uv run ruff check src scripts tests
-```
+Training uses a GPU through the thin runner in
+`notebooks/colab_sft.ipynb`. Local serving and evaluation use `llama.cpp`.
+The base and tuned models must use the same prompt, decoder settings, runtime
+revision, and quantization procedure.
 
-## Hardware
+Raw source records never go into git. Download the published
+[Clean Me If You Can](https://github.com/D2IP-TUB/Clean-Me-If-You-Can) release,
+record its URL, date, and checksum, and keep only manifests, fixtures, code,
+configs, and result metadata in this repository.
 
-- Training: Colab GPU (see `notebooks/colab_sft.ipynb`, thin wrapper around `scripts/train_sft.py`).
-- Eval + demo: M2 Air 8 GB via `llama.cpp`, Q4 quantization, same prompt and decoder for base and tuned.
+See:
 
-## License and scope note
+- `docs/REPRO.md` — reproduction workflow and pinned inputs
+- `docs/SPLITS.md` — entity-disjoint data split
+- `docs/EVAL.md` — scoring and validation
+- `paper/outline.md` — technical report structure
 
-Code: Apache-2.0 (`LICENSE`). Data terms: ODbL 1.0 for the source address data. This work evaluates public address records, not private customer data.
+Code: Apache-2.0 (`LICENSE`). Source address data: ODbL 1.0.
