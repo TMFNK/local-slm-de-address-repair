@@ -1,0 +1,16 @@
+# Dataset release + entity-disjoint splits. Fill hashes after download.
+source_repo: "https://github.com/D2IP-TUB/Clean-Me-If-You-Can"
+zenodo_url: "REPLACE_WITH_ZENODO_URL"
+dataset_date: "REPLACE_WITH_DATE"
+archive_sha256: "REPLACE_WITH_SHA256"
+extract_command: "REPLACE_WITH_COMMAND"
+license: "ODbL-1.0"
+
+splits:
+  train_entities: 5000
+  val_entities: 1000
+  test_entities: 2000
+
+# Test set uses only original paired dirty/clean rows. No synthetic rows in test.
+smoke_fixture: "fixtures/smoke_100/"
+manifests_dir: "data/manifests/"

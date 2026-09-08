@@ -1,0 +1,19 @@
+# Pinned model + runtime. Bump `rev` deliberately, never silently.
+model_id: "openbmb/MiniCPM5-1B"
+model_rev: "REPLACE_WITH_PINNED_SHA"
+gguf_repo: "openbmb/MiniCPM5-1B-GGUF"
+gguf_file: "REPLACE_WITH_Q4_FILENAME"
+gguf_rev: "REPLACE_WITH_PINNED_SHA"
+prompt_rev: "v1"
+chat_template_mode: "no-think"
+
+# Local eval runtime (M2 Air 8GB) — same for base and tuned.
+llama_cpp_rev: "REPLACE_WITH_PINNED_SHA"
+n_ctx: 2048
+quant: "Q4_K_M"
+
+decode:
+  temperature: 0.0
+  top_p: 1.0
+  max_tokens: 512
+  seed: 7

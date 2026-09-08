@@ -1,0 +1,36 @@
+# No-data rule: raw records, models, and large artifacts never go into git.
+data/
+*.csv
+*.tsv
+*.parquet
+*.gguf
+*.bin
+*.safetensors
+checkpoints/
+adapters/
+evals/raw/
+evals/audit/*.jsonl
+*.jsonl
+!fixtures/**/*.jsonl
+
+# Python / uv
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+dist/
+build/
+*.egg-info/
+
+# Colab / notebooks
+.ipynb_checkpoints/
+.colab/
+
+# llama.cpp local build and models
+llama.cpp/
+models/
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
