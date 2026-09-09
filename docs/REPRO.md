@@ -10,6 +10,19 @@ uv run pytest
 uv run ruff check src scripts tests
 ```
 
+Data preparation is implemented but requires the pinned source release in
+`data/raw/dirty.csv` and `data/raw/clean.csv`. After recording the release
+metadata and checksums in `configs/data.yaml`, run:
+
+```bash
+uv run python scripts/prepare_data.py --config configs/data.yaml
+```
+
+The command refuses incomplete pairs, duplicate IDs, insufficient entity
+counts, or accidental replacement of generated manifests. It writes one
+manifest per split and a paired 100-record fixture from the held-out test
+partition. Pass `--force` only when deliberately regenerating those files.
+
 The rules-floor smoke runner is the first experiment gate:
 
 ```bash

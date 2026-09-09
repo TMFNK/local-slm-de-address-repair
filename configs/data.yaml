@@ -1,10 +1,14 @@
 # Dataset release + entity-disjoint splits. Fill hashes after download.
 source_repo: "https://github.com/D2IP-TUB/Clean-Me-If-You-Can"
-zenodo_url: "REPLACE_WITH_ZENODO_URL"
-dataset_date: "REPLACE_WITH_DATE"
-archive_sha256: "REPLACE_WITH_SHA256"
-extract_command: "REPLACE_WITH_COMMAND"
+zenodo_url: "https://zenodo.org/records/20841898"
+dataset_date: "2026-06-26"
+archive_file: "AddressTable.zip"
+archive_sha256: "28ace972f27fd0e7cc3b62cea547e439c3e82dd77288872b3b357084d432dd1b"
+extract_command: "unzip -o data/raw/AddressTable.zip 'AddressTable/de_slice/named/*' -d data/raw/_addr_tmp && cp data/raw/_addr_tmp/AddressTable/de_slice/named/slice_de_dirty.csv data/raw/dirty.csv && cp data/raw/_addr_tmp/AddressTable/de_slice/named/slice_de_clean.csv data/raw/clean.csv"
 license: "ODbL-1.0"
+dirty_file: "dirty.csv"
+clean_file: "clean.csv"
+id_field: "id"
 
 splits:
   train_entities: 5000
