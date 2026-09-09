@@ -58,6 +58,7 @@ def test_load_paired_records_preserves_dirty_and_gold(tmp_path):
 
 
 def test_load_paired_records_rejects_misaligned_ids(tmp_path):
+
     dirty = tmp_path / "dirty.csv"
     clean = tmp_path / "clean.csv"
     _write_csv(dirty, [_row("e1", "Musterstr.")])
@@ -71,3 +72,19 @@ def test_records_hash_is_stable_for_mapping_order():
     assert records_hash([{"id": "e1", "dirty": {"road": "A"}}]) == records_hash(
         [{"dirty": {"road": "A"}, "id": "e1"}]
     )
+
+
+def test_country_code_is_canonicalized_to_uppercase(tmp_path):
+    dirty = tmp_path / "dirty.csv"
+    clean = tmp_path / "clean.csv"
+    dirty_row = _row("e1", "Musterstr.")
+    dirty_row["country_code"] = "de"
+    clean_row = _row("e1", "Musterstraße")
+    clean_row["country_code"] = "de"
+    _write_csv(dirty, [dirty_row])
+    _write_csv(clean, [clean_row])
+
+    (record,) = load_paired_records(dirty, clean)
+
+    assert record["dirty"]["country_code"] == "DE"
+    assert record["gold"]["country_code"] == "DE"

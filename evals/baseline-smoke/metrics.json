@@ -3,11 +3,11 @@
   "metrics": {
     "by_field": {
       "country_code": {
-        "clean_field_damage": 18,
+        "clean_field_damage": 0,
         "clean_fields": 18,
         "correct_abstentions": 82,
         "correct_repairs": 0,
-        "damage_rate": 1.0,
+        "damage_rate": 0.0,
         "missed_repairs": 0,
         "repair_precision": 0.0,
         "repair_recall": 0.0,
@@ -81,10 +81,10 @@
         "wrong_repairs": 0
       }
     },
-    "damage_rate": 0.0456,
+    "damage_rate": 0.0,
     "n": 100,
-    "repair_f1": 0.1339,
-    "repair_precision": 0.4706,
+    "repair_f1": 0.1448,
+    "repair_precision": 1.0,
     "repair_recall": 0.078,
     "review_coverage": 0.0583,
     "review_precision": 1.0,

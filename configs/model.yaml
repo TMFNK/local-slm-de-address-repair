@@ -4,7 +4,7 @@ model_rev: "87179e5c1f455ef22e6223592d2d61351b525bfc"
 gguf_repo: "openbmb/MiniCPM5-1B-GGUF"
 gguf_file: "MiniCPM5-1B-Q4_K_M.gguf"
 gguf_rev: "3d55fac80935ae6456986ad2384b5cbcc4d6c948"
-prompt_rev: "v1"
+prompt_rev: "v2"
 chat_template_mode: "no-think"
 
 # Local eval runtime — same for base and tuned.

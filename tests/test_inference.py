@@ -7,6 +7,7 @@ import pytest
 sys.path.insert(0, "src")
 
 from addr_repair.inference import LocalModel, run_rules  # noqa: E402
+from addr_repair.prompts import PRODUCTION_PROMPT_REV  # noqa: E402
 
 
 CLEAN = {
@@ -63,7 +64,7 @@ def test_local_model_returns_parsed_output(monkeypatch):
     assert output["clean_record"] == CLEAN
     assert meta["parse_errors"] == []
     assert meta["model_rev"] == "rev-1"
-    assert meta["prompt_rev"] == "v1"
+    assert meta["prompt_rev"] == PRODUCTION_PROMPT_REV
     assert seen["url"] == "http://127.0.0.1:8080/v1/chat/completions"
     assert seen["body"]["seed"] == 7
     assert seen["body"]["temperature"] == 0.0

@@ -59,7 +59,11 @@ def _record(row: dict, row_number: int) -> dict:
     missing = [field for field in FIELDS if field not in row]
     if missing:
         raise ValueError(f"row {row_number} is missing fields: {', '.join(missing)}")
-    return {field: str(row.get(field) or "") for field in FIELDS}
+    record = {field: str(row.get(field) or "") for field in FIELDS}
+    # Canonical form per the experiment contract: ISO alpha-2 uppercase.
+    # The source release uses lowercase 'de'; the schema demands 'DE'.
+    record["country_code"] = record["country_code"].strip().upper()
+    return record
 
 
 def load_paired_records(

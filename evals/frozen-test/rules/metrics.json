@@ -10,12 +10,12 @@
     "gguf_sha256": null,
     "llama_cpp_rev": "b31b71f3a076bfc4278daad442203a9c51c6e676",
     "manifest": "data/manifests/test.json",
-    "manifest_records_sha256": "2cd902a96fa469ab40e817c9d430a0cae6c79b04657f58e5704334448bc7d6a4",
+    "manifest_records_sha256": "f07671a33490f6c31b90c5cc61b28d674fc436061073b22a6e273fd57595c516",
     "model_rev": "rules-floor-v1",
     "n_ctx": 2048,
     "platform": "Darwin arm64",
-    "prompt_rev": "v1",
-    "repo_commit": "f0871c380d8aeb5f613b0c3e7d97ce28ee06f9cf",
+    "prompt_rev": "v2",
+    "repo_commit": "b75f50d72947f496bd068050dea0f7f01910b3d1",
     "source_clean_sha256": "78c852e3a5680a7460732b67ab87d82484a718297190fa8852af73a80817a192",
     "source_dirty_sha256": "2ef8ab1424c8c357af1aeaecef12b376cb7f20616437035f2753d0b2f2ac86ef",
     "system": "rules"
@@ -23,11 +23,11 @@
   "metrics": {
     "by_field": {
       "country_code": {
-        "clean_field_damage": 353,
+        "clean_field_damage": 0,
         "clean_fields": 353,
         "correct_abstentions": 1647,
         "correct_repairs": 0,
-        "damage_rate": 1.0,
+        "damage_rate": 0.0,
         "missed_repairs": 0,
         "repair_precision": 0.0,
         "repair_recall": 0.0,
@@ -101,13 +101,13 @@
         "wrong_repairs": 8
       }
     },
-    "damage_rate": 0.0462,
+    "damage_rate": 0.0,
     "latency_ms_median": 0.0,
     "latency_ms_n": 2000,
     "latency_ms_p95": 0.0,
     "n": 2000,
-    "repair_f1": 0.1285,
-    "repair_precision": 0.4702,
+    "repair_f1": 0.1382,
+    "repair_precision": 0.9643,
     "repair_recall": 0.0744,
     "review_coverage": 0.073,
     "review_precision": 1.0,

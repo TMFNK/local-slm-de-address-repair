@@ -10,6 +10,8 @@ No entity or clean target crosses splits. Manifests in `data/manifests/` record
 IDs, source-file hashes, source URL, dataset date, and the canonical paired
 record hash. The preparation command reads `data/raw/dirty.csv` and
 `data/raw/clean.csv`, checks that rows are aligned by `id`, and projects both
-files to the six fields in the output contract. The smoke fixture
+files to the six fields in the output contract. `country_code` is
+canonicalized to uppercase ISO alpha-2 (`de` becomes `DE`) in the same
+projection step, matching the JSON Schema. The smoke fixture
 (`fixtures/smoke_100/`) holds 100 original dirty/clean pairs from the test
 partition; check 20 by hand before training.
