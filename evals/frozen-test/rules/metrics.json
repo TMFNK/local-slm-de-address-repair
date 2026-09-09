@@ -1,0 +1,116 @@
+{
+  "freeze": {
+    "decode": {
+      "max_tokens": 512,
+      "seed": 7,
+      "temperature": 0.0,
+      "top_p": 1.0
+    },
+    "gguf": "models/MiniCPM5-1B-Q4_K_M.gguf",
+    "gguf_sha256": null,
+    "llama_cpp_rev": "b31b71f3a076bfc4278daad442203a9c51c6e676",
+    "manifest": "data/manifests/test.json",
+    "manifest_records_sha256": "2cd902a96fa469ab40e817c9d430a0cae6c79b04657f58e5704334448bc7d6a4",
+    "model_rev": "rules-floor-v1",
+    "n_ctx": 2048,
+    "platform": "Darwin arm64",
+    "prompt_rev": "v1",
+    "repo_commit": "f0871c380d8aeb5f613b0c3e7d97ce28ee06f9cf",
+    "source_clean_sha256": "78c852e3a5680a7460732b67ab87d82484a718297190fa8852af73a80817a192",
+    "source_dirty_sha256": "2ef8ab1424c8c357af1aeaecef12b376cb7f20616437035f2753d0b2f2ac86ef",
+    "system": "rules"
+  },
+  "metrics": {
+    "by_field": {
+      "country_code": {
+        "clean_field_damage": 353,
+        "clean_fields": 353,
+        "correct_abstentions": 1647,
+        "correct_repairs": 0,
+        "damage_rate": 1.0,
+        "missed_repairs": 0,
+        "repair_precision": 0.0,
+        "repair_recall": 0.0,
+        "review_flagged": 0,
+        "review_precision": 0.0,
+        "wrong_repairs": 0
+      },
+      "house_number": {
+        "clean_field_damage": 0,
+        "clean_fields": 1579,
+        "correct_abstentions": 421,
+        "correct_repairs": 0,
+        "damage_rate": 0.0,
+        "missed_repairs": 0,
+        "repair_precision": 0.0,
+        "repair_recall": 0.0,
+        "review_flagged": 290,
+        "review_precision": 1.0,
+        "wrong_repairs": 0
+      },
+      "locality": {
+        "clean_field_damage": 0,
+        "clean_fields": 1612,
+        "correct_abstentions": 384,
+        "correct_repairs": 0,
+        "damage_rate": 0.0,
+        "missed_repairs": 4,
+        "repair_precision": 0.0,
+        "repair_recall": 0.0,
+        "review_flagged": 0,
+        "review_precision": 0.0,
+        "wrong_repairs": 4
+      },
+      "name": {
+        "clean_field_damage": 0,
+        "clean_fields": 1244,
+        "correct_abstentions": 754,
+        "correct_repairs": 2,
+        "damage_rate": 0.0,
+        "missed_repairs": 0,
+        "repair_precision": 1.0,
+        "repair_recall": 0.0026,
+        "review_flagged": 0,
+        "review_precision": 0.0,
+        "wrong_repairs": 0
+      },
+      "postcode": {
+        "clean_field_damage": 0,
+        "clean_fields": 1613,
+        "correct_abstentions": 387,
+        "correct_repairs": 0,
+        "damage_rate": 0.0,
+        "missed_repairs": 0,
+        "repair_precision": 0.0,
+        "repair_recall": 0.0,
+        "review_flagged": 346,
+        "review_precision": 1.0,
+        "wrong_repairs": 0
+      },
+      "road": {
+        "clean_field_damage": 0,
+        "clean_fields": 1247,
+        "correct_abstentions": 423,
+        "correct_repairs": 322,
+        "damage_rate": 0.0,
+        "missed_repairs": 8,
+        "repair_precision": 0.9758,
+        "repair_recall": 0.4276,
+        "review_flagged": 240,
+        "review_precision": 1.0,
+        "wrong_repairs": 8
+      }
+    },
+    "damage_rate": 0.0462,
+    "latency_ms_median": 0.0,
+    "latency_ms_n": 2000,
+    "latency_ms_p95": 0.0,
+    "n": 2000,
+    "repair_f1": 0.1285,
+    "repair_precision": 0.4702,
+    "repair_recall": 0.0744,
+    "review_coverage": 0.073,
+    "review_precision": 1.0,
+    "schema_validity": 0.1765
+  }
+}

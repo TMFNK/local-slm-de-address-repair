@@ -1,0 +1,21 @@
+{
+  "decode": {
+    "max_tokens": 512,
+    "seed": 7,
+    "temperature": 0.0,
+    "top_p": 1.0
+  },
+  "gguf": "models/MiniCPM5-1B-Q4_K_M.gguf",
+  "gguf_sha256": "81b64d05a23b17b34c475f42b3e72fbde62d4b92cc34541f7a8031d0752deafa",
+  "llama_cpp_rev": "b31b71f3a076bfc4278daad442203a9c51c6e676",
+  "manifest": "fixtures/smoke_100/manifest.json",
+  "manifest_records_sha256": "c39d15764914fd6370d6f215bdc10afffafea02c39a571da2a425c2f5cd0c029",
+  "model_rev": "87179e5c1f455ef22e6223592d2d61351b525bfc",
+  "n_ctx": 2048,
+  "platform": "Darwin arm64",
+  "prompt_rev": "v1",
+  "repo_commit": "f0871c380d8aeb5f613b0c3e7d97ce28ee06f9cf",
+  "source_clean_sha256": "78c852e3a5680a7460732b67ab87d82484a718297190fa8852af73a80817a192",
+  "source_dirty_sha256": "2ef8ab1424c8c357af1aeaecef12b376cb7f20616437035f2753d0b2f2ac86ef",
+  "system": "base"
+}

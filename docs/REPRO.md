@@ -40,6 +40,25 @@ This writes `evals/baseline-smoke/metrics.json` (aggregate plus per-field
 repair precision/recall, damage rate, and review precision) alongside the
 ignored audit JSONL. `--pairs` and `--fixture` are mutually exclusive.
 
+Frozen evaluation runs every system through one shared local path
+(parse, validate, audit, score). Start the pinned server first; the
+`--reasoning off` flag is what engages no-think mode:
+
+```bash
+./llama.cpp/build/bin/llama-server -m models/MiniCPM5-1B-Q4_K_M.gguf -c 2048 --reasoning off
+uv run python scripts/evaluate_local.py --system rules
+uv run python scripts/evaluate_local.py --system base --manifest fixtures/smoke_100/manifest.json --out-dir evals/baseline-smoke/
+```
+
+Each run checks the manifest hash before scoring and writes ignored
+`audit.jsonl` plus committed `metrics.json` and `freeze.json` (hashes and
+aggregate numbers only, no raw records). SFT needs its adapter GGUF and
+checkpoint hash:
+
+```bash
+uv run python scripts/evaluate_local.py --system sft --gguf models/sft-Q4_K_M.gguf --model-rev <adapter-hash>
+```
+
 ## Planned experiment
 
 1. Download the Zenodo release from `configs/data.yaml`; record URL, date,
