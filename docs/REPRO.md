@@ -29,6 +29,17 @@ The rules-floor smoke runner is the first experiment gate:
 uv run python scripts/run_baseline.py --config configs/model.yaml
 ```
 
+With gold pairs it also writes scored metrics next to the audit output:
+
+```bash
+uv run python scripts/run_baseline.py --pairs fixtures/smoke_100/pairs.jsonl \
+  --out evals/baseline-smoke/audit.jsonl
+```
+
+This writes `evals/baseline-smoke/metrics.json` (aggregate plus per-field
+repair precision/recall, damage rate, and review precision) alongside the
+ignored audit JSONL. `--pairs` and `--fixture` are mutually exclusive.
+
 ## Planned experiment
 
 1. Download the Zenodo release from `configs/data.yaml`; record URL, date,
