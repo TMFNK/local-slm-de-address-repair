@@ -273,6 +273,69 @@ def test_trl_recognises_training_template_markers():
     assert has_generation_markers(train_sft.TRAIN_CHAT_TEMPLATE) is True
 
 
+def test_resolve_resume_checkpoint(tmp_path):
+    import time as _time
+
+    out = tmp_path / "checkpoints"
+    out.mkdir()
+    assert train_sft.resolve_resume_checkpoint(out, False) is None
+    assert train_sft.resolve_resume_checkpoint(out, True) is None
+    old = out / "checkpoint-100"
+    new = out / "checkpoint-200"
+    old.mkdir()
+    new.mkdir()
+    import os
+
+    os.utime(old, (_time.time() - 10, _time.time() - 10))
+    # Must be the checkpoint dir (holds trainer_state.json), never output_dir.
+    assert train_sft.resolve_resume_checkpoint(out, True) == new
+
+
+def test_score_file_roundtrip_and_skip(tmp_path):
+    out = tmp_path / "checkpoints"
+    assert train_sft.read_score_file(out, "checkpoint-100") is None
+    metrics = {"repair_f1": 0.5, "inventions": 0}
+    train_sft.write_score_file(out, "checkpoint-100", metrics)
+    assert train_sft.read_score_file(out, "checkpoint-100") == metrics
+    (out / "selection_scores" / "bad.json").write_text("not json", encoding="utf-8")
+    assert train_sft.read_score_file(out, "bad") is None
+
+
+def test_find_adapter_prefers_safetensors(tmp_path):
+    ckpt = tmp_path / "checkpoint-1"
+    ckpt.mkdir()
+    assert train_sft._find_adapter(ckpt) is None
+    (ckpt / "adapter_model.bin").write_text("x", encoding="utf-8")
+    assert train_sft._find_adapter(ckpt).name == "adapter_model.bin"
+    (ckpt / "adapter_model.safetensors").write_text("x", encoding="utf-8")
+    assert train_sft._find_adapter(ckpt).name == "adapter_model.safetensors"
+
+
+def test_iter_candidates_ends_with_output_dir(tmp_path):
+    import os
+    import time as _time
+
+    out = tmp_path / "checkpoints"
+    out.mkdir()
+    (out / "checkpoint-200").mkdir()
+    old = out / "checkpoint-100"
+    old.mkdir()
+    os.utime(old, (_time.time() - 10, _time.time() - 10))
+    names = [p.name for p in train_sft._iter_candidates(out)]
+    assert names == ["checkpoint-100", "checkpoint-200", "checkpoints"]
+
+
+def test_select_only_flag_dispatches(tmp_path, monkeypatch):
+    cfg = _setup(tmp_path, [(_row("e1"), _row("e1"))], [(_row("e2"), _row("e2"))])
+    seen = {}
+    monkeypatch.setattr(
+        train_sft, "run_selection_only", lambda resolved: seen.update(called=True)
+    )
+    monkeypatch.setattr(sys, "argv", ["train_sft.py", "--config", str(cfg), "--select-only"])
+    train_sft.main()
+    assert seen == {"called": True}
+
+
 def test_training_template_is_no_think():
     assert "<think" not in train_sft.TRAIN_CHAT_TEMPLATE.lower()
 

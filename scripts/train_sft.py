@@ -227,6 +227,47 @@ def _latest_checkpoint(output_dir: Path) -> Path | None:
     return candidates[-1] if candidates else None
 
 
+def resolve_resume_checkpoint(output_dir: Path, resume: bool) -> Path | None:
+    """Return the checkpoint dir to resume from, or None for a fresh start.
+
+    Must be the checkpoint directory itself (it holds trainer_state.json),
+    never output_dir — passing output_dir makes transformers fail looking
+    for <output_dir>/trainer_state.json.
+    """
+    if not resume:
+        return None
+    return _latest_checkpoint(Path(output_dir))
+
+
+def _score_file(output_dir: Path, name: str) -> Path:
+    return Path(output_dir) / "selection_scores" / f"{name}.json"
+
+
+def read_score_file(output_dir: Path, name: str) -> dict | None:
+    """Return previously scored metrics for a checkpoint, or None."""
+    path = _score_file(output_dir, name)
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    metrics = payload.get("metrics")
+    return metrics if isinstance(metrics, dict) else None
+
+
+def write_score_file(output_dir: Path, name: str, metrics: dict) -> Path:
+    """Persist one checkpoint's metrics so interrupted scoring can resume."""
+    path = _score_file(output_dir, name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({"name": name, "metrics": metrics}, ensure_ascii=False, indent=2, sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
 def _empty_cuda_cache() -> None:
     if importlib.util.find_spec("torch") is None:
         return
@@ -364,7 +405,8 @@ def build_sft_config(train_cfg: dict, output_dir: Path, use_bf16: bool):
     return SFTConfig(**kept), dropped
 
 
-def score_val_sample(    model,
+def score_val_sample(
+    model,
     tokenizer,
     pairs: list[dict],
     *,
@@ -483,11 +525,11 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
         ),
         encoding="utf-8",
     )
-    resume_from = output_dir if (resume and _latest_checkpoint(output_dir)) else None
+    resume_from = resolve_resume_checkpoint(output_dir, resume)
     if resume and resume_from is None:
         print("[train_sft] --resume set but no checkpoint found; starting fresh")
     resumed = resume_from is not None
-    trainer.train(resume_from_checkpoint=resume_from)
+    trainer.train(resume_from_checkpoint=str(resume_from) if resume_from else None)
     train_seconds = round(time.perf_counter() - started, 1)
 
     # Free the training model before val scoring loads fresh copies.
@@ -499,35 +541,17 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
     # Step 6 selection: score retained checkpoints + final adapter on val sample.
     val_samples = int(train_cfg.get("val_samples", 200))
     val_gen_tokens = int(train_cfg.get("val_gen_max_tokens", 512))
-    candidates = sorted(
-        [p for p in output_dir.glob("checkpoint-*") if p.is_dir()],
-        key=lambda p: p.stat().st_mtime,
-    )
     scored: list[tuple[str, dict]] = []
     val_started = time.perf_counter()
-    base_model_id, base_rev = model_id, model_rev
-    for checkpoint in candidates + [output_dir]:
-        adapter = checkpoint / "adapter_model.safetensors"
-        if not adapter.is_file():
-            adapter = checkpoint / "adapter_model.bin"
-        if not adapter.is_file() and checkpoint != output_dir:
+    for checkpoint in _iter_candidates(output_dir):
+        metrics = score_candidate(
+            checkpoint, output_dir, model_id, model_rev, trust_remote, use_bf16,
+            tokenizer, val_pairs, val_samples, val_gen_tokens,
+        )
+        if metrics is None:
             continue
-        from peft import PeftModel
-
-        plain = transformers.AutoModelForCausalLM.from_pretrained(
-            base_model_id, revision=base_rev, trust_remote_code=trust_remote,
-            dtype=torch.bfloat16 if use_bf16 else torch.float32, device_map="auto",
-        )
-        scored_model = PeftModel.from_pretrained(plain, str(checkpoint)) if adapter.is_file() else plain
-        scored_model.eval()
-        metrics = score_val_sample(
-            scored_model, tokenizer, val_pairs,
-            max_samples=val_samples, max_new_tokens=val_gen_tokens,
-        )
-        metrics["adapter_sha256"] = _sha256_file(adapter) if adapter.is_file() else None
+        write_score_file(output_dir, checkpoint.name, metrics)
         scored.append((checkpoint.name, metrics))
-        del scored_model, plain
-        _empty_cuda_cache()
     val_seconds = round(time.perf_counter() - val_started, 1)
     winner_name, winner_metrics = pick_best(scored)
 
@@ -596,6 +620,134 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
     return record
 
 
+def _iter_candidates(output_dir: Path) -> list[Path]:
+    """Retained checkpoints (oldest first) plus the output dir (final adapter)."""
+    candidates = sorted(
+        [p for p in Path(output_dir).glob("checkpoint-*") if p.is_dir()],
+        key=lambda p: p.stat().st_mtime,
+    )
+    return candidates + [Path(output_dir)]
+
+
+def _find_adapter(checkpoint: Path) -> Path | None:
+    for name in ("adapter_model.safetensors", "adapter_model.bin"):
+        candidate = checkpoint / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def score_candidate(
+    checkpoint, output_dir, model_id, model_rev, trust_remote, use_bf16,
+    tokenizer, val_pairs, val_samples, val_gen_tokens,
+):
+    """Score one checkpoint (or the final adapter) on the val sample.
+
+    Returns the metrics dict, or None when the candidate holds no adapter
+    (non-final checkpoints without adapter weights are skipped).
+    """
+    import torch
+    import transformers
+    from peft import PeftModel
+
+    adapter = _find_adapter(checkpoint)
+    if adapter is None and checkpoint != Path(output_dir):
+        return None
+    plain = transformers.AutoModelForCausalLM.from_pretrained(
+        model_id, revision=model_rev, trust_remote_code=trust_remote,
+        dtype=torch.bfloat16 if use_bf16 else torch.float32, device_map="auto",
+    )
+    scored_model = PeftModel.from_pretrained(plain, str(checkpoint)) if adapter else plain
+    scored_model.eval()
+    try:
+        metrics = score_val_sample(
+            scored_model, tokenizer, val_pairs,
+            max_samples=val_samples, max_new_tokens=val_gen_tokens,
+        )
+    finally:
+        del scored_model, plain
+        _empty_cuda_cache()
+    metrics["adapter_sha256"] = _sha256_file(adapter) if adapter else None
+    return metrics
+
+
+def run_selection_only(resolved: dict) -> dict:
+    """Score existing checkpoints without training (interrupted-scoring recovery).
+
+    Reuses per-checkpoint score files, so rerunning after an interrupt only
+    scores what is missing. Writes the same selection.json as the training
+    path plus a selection_record.json (no training stats to report).
+    """
+    import transformers
+
+    assert_prompt_parity(resolved)
+    train_cfg, model_cfg = resolved["train"], resolved["model"]
+    output_dir = Path(train_cfg["output_dir"])
+    val_pairs, val_manifest = load_split_pairs(resolved, "val")
+    tokenizer = transformers.AutoTokenizer.from_pretrained(
+        model_cfg["model_id"], revision=model_cfg["model_rev"],
+        trust_remote_code=bool(train_cfg.get("trust_remote_code", False)), use_fast=True,
+    )
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    apply_training_template(tokenizer)
+
+    val_samples = int(train_cfg.get("val_samples", 200))
+    val_gen_tokens = int(train_cfg.get("val_gen_max_tokens", 512))
+    use_bf16 = bool(train_cfg.get("bf16", True))
+    trust_remote = bool(train_cfg.get("trust_remote_code", False))
+    scored: list[tuple[str, dict]] = []
+    for checkpoint in _iter_candidates(output_dir):
+        metrics = read_score_file(output_dir, checkpoint.name)
+        if metrics is not None:
+            print(f"[train_sft] reusing score for {checkpoint.name}")
+        else:
+            print(f"[train_sft] scoring {checkpoint.name} ...")
+            metrics = score_candidate(
+                checkpoint, output_dir, model_cfg["model_id"], model_cfg["model_rev"],
+                trust_remote, use_bf16, tokenizer, val_pairs, val_samples, val_gen_tokens,
+            )
+            if metrics is None:
+                continue
+            write_score_file(output_dir, checkpoint.name, metrics)
+        scored.append((checkpoint.name, metrics))
+    if not scored:
+        raise SystemExit(f"no scorable checkpoints in {output_dir}")
+    winner_name, winner_metrics = pick_best(scored)
+    rule = "max mean(review_precision, 1-damage_rate, repair_f1); ties by contract_validity then fewest inventions"
+    (output_dir / "selection.json").write_text(
+        json.dumps(
+            {"winner": winner_name, "selection_score": selection_score(winner_metrics),
+             "metrics": winner_metrics, "rule": rule},
+            ensure_ascii=False, indent=2, sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    record = {
+        "mode": "selection-only",
+        "val_manifest_sha256": val_manifest["records_sha256"],
+        "val_samples": val_samples,
+        "val_gen_max_tokens": val_gen_tokens,
+        "checkpoints": [
+            {"name": name, "selection_score": selection_score(m), "metrics": m}
+            for name, m in scored
+        ],
+        "winner": winner_name,
+        "winner_selection_score": selection_score(winner_metrics),
+        "selection_rule": rule,
+        "gpu": _gpu_record(),
+        "platform": f"{platform.system()} {platform.machine()}",
+        "repo_commit": _repo_commit(),
+    }
+    (output_dir / "selection_record.json").write_text(
+        json.dumps(record, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    print(f"[train_sft] selection-only winner={winner_name} "
+          f"score={selection_score(winner_metrics)} -> {output_dir}")
+    return record
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="LoRA SFT for MiniCPM5-1B address repair.")
     parser.add_argument("--config", default="configs/train_colab.yaml")
@@ -604,10 +756,17 @@ def main() -> None:
         "--resume", action="store_true",
         help="Continue from the latest checkpoint in output_dir (Colab recovery).",
     )
+    parser.add_argument(
+        "--select-only", action="store_true",
+        help="Skip training; score existing checkpoints and write selection.json.",
+    )
     args = parser.parse_args()
     resolved = load_resolved_config(args.config)
     if args.dry_run:
         raise SystemExit(run_dry_run(resolved))
+    if args.select_only:
+        run_selection_only(resolved)
+        return
     run_training(resolved, resume=args.resume)
 
 
