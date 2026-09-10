@@ -13,7 +13,16 @@ num_train_epochs: 3
 bf16: true
 fp16: false
 max_seq_length: 2048
-save_steps: 200
+eval_strategy: steps
 eval_steps: 200
+save_steps: 200
 save_total_limit: 3
+logging_steps: 50
+report_to: none
 seed: 7
+trust_remote_code: true
+
+# Step 6 checkpoint choice (scripts/train_sft.py scores retained checkpoints
+# on this many val records; winner = max mean(review_precision, 1-damage, F1)).
+val_samples: 200
+val_gen_max_tokens: 512

@@ -93,6 +93,8 @@ def main() -> None:
                     "gold": row["gold"],
                     "pred": repaired,
                     "schema_ok": ok,
+                    "semantic_ok": not semantic_errors,
+                    "parsed": True,
                     "needs_review": needs_review,
                 }
             )
@@ -120,7 +122,9 @@ def main() -> None:
             "[run_baseline] rules-floor "
             f"precision={metrics['repair_precision']} recall={metrics['repair_recall']} "
             f"f1={metrics['repair_f1']} damage={metrics['damage_rate']} "
-            f"schema={metrics['schema_validity']} -> {metrics_path}"
+            f"schema={metrics['schema_validity']} semantic={metrics['semantic_validity']} "
+            f"contract={metrics['contract_validity']} inventions={metrics['inventions']} "
+            f"-> {metrics_path}"
         )
 
 

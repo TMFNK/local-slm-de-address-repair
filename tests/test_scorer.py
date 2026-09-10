@@ -55,3 +55,178 @@ def test_scorer_counts_abstention_and_review_for_missing_input():
     assert metrics["by_field"]["road"]["correct_abstentions"] == 1
     assert metrics["by_field"]["road"]["review_precision"] == 1.0
     assert metrics["review_precision"] == 1.0
+
+
+def test_scorer_does_not_reward_invented_correct_gold():
+    # Fix 3: dirty '' -> gold '44892', pred '44892' without review is
+    # invention, not a correct repair — even though it matches gold.
+    dirty = {
+        "name": "x",
+        "road": "Musterstraße",
+        "house_number": "12",
+        "postcode": "",
+        "locality": "München",
+        "country_code": "DE",
+    }
+    gold = {**dirty, "postcode": "44892"}
+    pred = {**dirty, "postcode": "44892"}
+    metrics = score_records(
+        [
+            {
+                "dirty": dirty,
+                "gold": gold,
+                "pred": pred,
+                "needs_review": [],
+                "schema_ok": True,
+                "semantic_ok": True,
+                "parsed": True,
+            }
+        ]
+    )
+    assert metrics["by_field"]["postcode"]["correct_repairs"] == 0
+    assert metrics["by_field"]["postcode"]["inventions"] == 1
+    assert metrics["inventions"] == 1
+    assert metrics["repair_precision"] == 0.0
+    # The invented field is a miss against honest behaviour: no TP earned.
+    assert metrics["repair_recall"] == 0.0
+
+
+def test_scorer_counts_invention_even_with_review_flag():
+    # A review flag does not excuse filling: semantic layer rejects it
+    # separately, and the scorer still counts invention (never TP).
+    dirty = {
+        "name": "x",
+        "road": "Musterstraße",
+        "house_number": "12",
+        "postcode": "",
+        "locality": "München",
+        "country_code": "DE",
+    }
+    gold = {**dirty, "postcode": "44892"}
+    pred = {**dirty, "postcode": "44892"}
+    metrics = score_records(
+        [
+            {
+                "dirty": dirty,
+                "gold": gold,
+                "pred": pred,
+                "needs_review": ["postcode"],
+                "schema_ok": True,
+                "semantic_ok": False,
+                "parsed": True,
+            }
+        ]
+    )
+    assert metrics["by_field"]["postcode"]["correct_repairs"] == 0
+    assert metrics["inventions"] == 1
+    assert metrics["semantic_validity"] == 0.0
+    assert metrics["contract_validity"] == 0.0
+
+
+def test_scorer_counts_wrong_invention_once():
+    # Invented but wrong: one FP (not double), plus the recall miss.
+    dirty = {
+        "name": "x",
+        "road": "Musterstraße",
+        "house_number": "12",
+        "postcode": "",
+        "locality": "München",
+        "country_code": "DE",
+    }
+    gold = {**dirty, "postcode": "44892"}
+    pred = {**dirty, "postcode": "99999"}
+    metrics = score_records(
+        [
+            {
+                "dirty": dirty,
+                "gold": gold,
+                "pred": pred,
+                "needs_review": [],
+                "schema_ok": True,
+                "semantic_ok": True,
+                "parsed": True,
+            }
+        ]
+    )
+    assert metrics["inventions"] == 1
+    assert metrics["repair_precision"] == 0.0
+    assert metrics["repair_recall"] == 0.0
+    assert metrics["by_field"]["postcode"]["inventions"] == 1
+
+
+def test_scorer_abstention_still_counts_as_recall_miss():
+    # Step 5 contract: honest abstention is correct behaviour but still a
+    # recall miss on the gold-based test set. Locks the reported tension.
+    dirty = {
+        "name": "x",
+        "road": "Musterstraße",
+        "house_number": "12",
+        "postcode": "",
+        "locality": "München",
+        "country_code": "DE",
+    }
+    gold = {**dirty, "postcode": "44892"}
+    metrics = score_records(
+        [
+            {
+                "dirty": dirty,
+                "gold": gold,
+                "pred": dict(dirty),
+                "needs_review": ["postcode"],
+                "schema_ok": True,
+                "semantic_ok": True,
+                "parsed": True,
+            }
+        ]
+    )
+    assert metrics["inventions"] == 0
+    assert metrics["by_field"]["postcode"]["correct_abstentions"] == 1
+    assert metrics["repair_recall"] == 0.0
+    assert metrics["review_precision"] == 1.0
+
+
+def test_scorer_reports_validity_split_and_contract():
+    base = {
+        "name": "x",
+        "road": "Musterstraße",
+        "house_number": "12",
+        "postcode": "80331",
+        "locality": "München",
+        "country_code": "DE",
+    }
+    rows = [
+        {
+            "dirty": dict(base),
+            "gold": dict(base),
+            "pred": dict(base),
+            "needs_review": [],
+            "schema_ok": True,
+            "semantic_ok": True,
+            "parsed": True,
+        },
+        {
+            "dirty": dict(base),
+            "gold": dict(base),
+            "pred": dict(base),
+            "needs_review": [],
+            "schema_ok": True,
+            "semantic_ok": False,
+            "parsed": True,
+        },
+        {
+            "dirty": dict(base),
+            "gold": dict(base),
+            "pred": dict(base),
+            "needs_review": [],
+            "schema_ok": False,
+            "semantic_ok": False,
+            "parsed": False,
+        },
+    ]
+    metrics = score_records(rows)
+    assert metrics["schema_validity"] == round(2 / 3, 4)
+    assert metrics["semantic_validity"] == round(1 / 3, 4)
+    assert metrics["parse_rate"] == round(2 / 3, 4)
+    assert metrics["contract_validity"] == round(1 / 3, 4)
+    assert metrics["inventions"] == 0
+    assert metrics["invention_rate"] == 0.0

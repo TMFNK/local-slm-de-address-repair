@@ -69,7 +69,7 @@ def repair_with_rules(record: dict) -> tuple[dict, list[dict], list[str]]:
         raw = str(raw)
         if not raw.strip():
             repaired[field] = raw
-            if field in ("road", "postcode", "house_number"):
+            if field in ("road", "postcode", "house_number", "country_code"):
                 needs_review.append(field)
             continue
         cleaned = normalize_whitespace(raw)

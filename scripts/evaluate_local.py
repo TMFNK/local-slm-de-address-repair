@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from addr_repair.audit import write_audit_record  # noqa: E402
 from addr_repair.inference import LocalModel, run_rules  # noqa: E402
 from addr_repair.io import load_paired_records, records_hash, sha256_file  # noqa: E402
+from addr_repair.prompts import PRODUCTION_PROMPT_REV  # noqa: E402
 from addr_repair.schema import validate_output, validate_output_semantics  # noqa: E402
 from addr_repair.scorer import score_records  # noqa: E402
 
@@ -71,6 +72,11 @@ def main() -> None:
     args = parser.parse_args()
 
     model_config = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
+    if model_config.get("prompt_rev") != PRODUCTION_PROMPT_REV:
+        raise SystemExit(
+            f"prompt_rev drift: code serves {PRODUCTION_PROMPT_REV!r} but "
+            f"{args.config} pins {model_config.get('prompt_rev')!r}"
+        )
     pairs, manifest = _load_test_pairs(Path(args.manifest), Path(args.raw_dir), args.id_field)
 
     gguf_path = Path(args.gguf) if args.gguf else Path(model_config["local_gguf"])
@@ -104,11 +110,13 @@ def main() -> None:
         latencies.append(meta["latency_ms"])
         if output is None:
             ok, semantic_errors = False, meta["parse_errors"]
+            parsed, semantic_ok = False, False
             audit_output: dict = {"raw_text": meta["raw_text"], "parse_errors": meta["parse_errors"]}
             pred = dict(dirty)  # unusable output counts as no repair
         else:
             ok, _ = validate_output(output)
             semantic_errors = validate_output_semantics(dirty, output)
+            parsed, semantic_ok = True, not semantic_errors
             audit_output = output
             pred = output["clean_record"]
         write_audit_record(
@@ -123,6 +131,8 @@ def main() -> None:
                 "gold": pair["gold"],
                 "pred": pred,
                 "schema_ok": ok,
+                "semantic_ok": semantic_ok,
+                "parsed": parsed,
                 "needs_review": audit_output.get("needs_review", []),
             }
         )
@@ -163,6 +173,8 @@ def main() -> None:
         f"[evaluate_local] precision={metrics['repair_precision']} "
         f"recall={metrics['repair_recall']} f1={metrics['repair_f1']} "
         f"damage={metrics['damage_rate']} schema={metrics['schema_validity']} "
+        f"semantic={metrics['semantic_validity']} contract={metrics['contract_validity']} "
+        f"inventions={metrics['inventions']} "
         f"latency_p50={metrics['latency_ms_median']}ms p95={metrics['latency_ms_p95']}ms"
     )
 

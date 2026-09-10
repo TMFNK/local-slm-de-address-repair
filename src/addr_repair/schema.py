@@ -1,4 +1,16 @@
-"""Fixed output contract plus consistency checks for model responses."""
+"""Fixed output contract plus consistency checks for model responses.
+
+Contract note (Fix 1, 2026-09-09): ``country_code`` allows ``""`` as an
+explicit abstention value. An empty country_code must be kept as ``""``
+and listed in ``needs_review`` — never filled with ``"DE"`` without
+evidence in the dirty input. This aligns schema with rules.py and the
+evidence-preserving training-target policy.
+
+Invention gate (Fix 4, 2026-09-09): a field that is empty in the dirty
+input must stay empty in ``clean_record``. Filling it is invention and is
+rejected here, even with a matching change record or gold value. An empty
+critical field that is kept empty must be listed in ``needs_review``.
+"""
 
 from jsonschema import ValidationError, validate
 
@@ -17,7 +29,7 @@ OUTPUT_SCHEMA = {
                 "house_number": {"type": "string"},
                 "postcode": {"type": "string"},
                 "locality": {"type": "string"},
-                "country_code": {"type": "string", "enum": ["DE"]},
+                "country_code": {"type": "string", "enum": ["DE", ""]},
             },
         },
         "changes": {
@@ -38,6 +50,10 @@ OUTPUT_SCHEMA = {
 }
 
 FIELDS = ["name", "road", "house_number", "postcode", "locality", "country_code"]
+
+# Fields that must be routed to review when the dirty input has no value.
+# Keep in sync with rules.py empty-field policy and targets.py REVIEW_FIELDS.
+ABSTENTION_FIELDS = ("road", "postcode", "house_number", "country_code")
 
 
 def validate_output(payload: dict) -> tuple[bool, str]:
@@ -93,5 +109,18 @@ def validate_output_semantics(dirty: dict, payload: dict) -> list[str]:
         dirty_value = str(dirty.get(field, "") or "")
         if clean_record[field] != dirty_value and field not in changed_fields:
             errors.append(f"clean_record[{field}] changed without a change record")
+
+    for field in FIELDS:
+        dirty_value = str(dirty.get(field, "") or "")
+        clean_value = str(clean_record.get(field, "") or "")
+        if not dirty_value.strip() and clean_value.strip():
+            errors.append(f"clean_record[{field}] invents a value for an empty dirty field")
+        elif (
+            not dirty_value.strip()
+            and not clean_value.strip()
+            and field in ABSTENTION_FIELDS
+            and field not in reviews
+        ):
+            errors.append(f"{field} is empty in dirty input but missing from needs_review")
 
     return errors

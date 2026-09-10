@@ -35,6 +35,12 @@ def main() -> None:
     parser.add_argument("--config", default="configs/data.yaml")
     parser.add_argument("--raw-dir", default="data/raw")
     parser.add_argument("--force", action="store_true", help="replace generated manifests and fixture")
+    parser.add_argument(
+        "--skip-archive", action="store_true",
+        help="skip the source-archive existence/checksum gate (fallback when only "
+        "slice CSVs are present, e.g. Drive upload while Zenodo is down; "
+        "dirty/clean hashes are still recorded).",
+    )
     args = parser.parse_args()
 
     config_path = Path(args.config)
@@ -43,6 +49,8 @@ def main() -> None:
     dirty_path = _path(raw_dir, config.get("dirty_file", "dirty.csv"))
     clean_path = _path(raw_dir, config.get("clean_file", "clean.csv"))
     archive_path = _path(raw_dir, config["archive_file"]) if config.get("archive_file") else None
+    if args.skip_archive:
+        archive_path = None
     if archive_path and not archive_path.is_file():
         raise SystemExit(f"Source archive is not available: {archive_path}")
     expected_archive_hash = config.get("archive_sha256", "")
@@ -87,6 +95,7 @@ def main() -> None:
         "clean_sha256": sha256_file(clean_path),
         "archive": str(archive_path) if archive_path else None,
         "archive_sha256": sha256_file(archive_path) if archive_path else None,
+        "archive_skipped": bool(args.skip_archive),
         "source_repo": config["source_repo"],
         "zenodo_url": config["zenodo_url"],
         "dataset_date": config["dataset_date"],
