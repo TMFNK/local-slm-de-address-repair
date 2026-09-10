@@ -6,8 +6,7 @@ import pytest
 sys.path.insert(0, "src")
 sys.path.insert(0, "scripts")
 
-from run_baseline import main as baseline_main  # noqa: E402
-
+from run_baseline import main as baseline_main
 
 CLEAN = {
     "name": "Example GmbH",

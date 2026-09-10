@@ -2,7 +2,7 @@ import sys
 
 sys.path.insert(0, "src")
 
-from addr_repair.prompts import FIELDS, PRODUCTION_PROMPT_REV, build_repair_prompt  # noqa: E402
+from addr_repair.prompts import FIELDS, PRODUCTION_PROMPT_REV, build_repair_prompt
 
 
 def test_prompt_names_every_contract_field():

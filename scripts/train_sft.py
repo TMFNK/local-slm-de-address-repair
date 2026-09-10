@@ -15,6 +15,14 @@ refuses to build them (target validation fails fast).
 Checkpoint choice (Step 6 rule): the winner is picked on validation repair
 metrics — review precision and damage rate alongside F1, never recall alone
 (recall alone rewards invention). See ``selection_score``.
+
+Chat template (official MiniCPM recipe): the base model ships an inference
+template without ``{% generation %}`` markers, which TRL cannot mask. We set
+the training-only template from OpenBMB/MiniCPM ``docs/finetune/trl.md``
+(ChatML, no-think, assistant content inside ``{% generation %}``) before
+trainer init. It is never saved to disk; inference reloads the original
+tokenizer, with which the adapter stays fully compatible per the recipe.
+See ``TRAIN_CHAT_TEMPLATE`` and ``apply_training_template``.
 """
 
 from __future__ import annotations
@@ -22,6 +30,7 @@ from __future__ import annotations
 import argparse
 import gc
 import hashlib
+import importlib.util
 import json
 import platform
 import subprocess
@@ -33,22 +42,67 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from addr_repair.io import load_paired_records, records_hash  # noqa: E402
-from addr_repair.prompts import PRODUCTION_PROMPT_REV  # noqa: E402
-from addr_repair.schema import validate_output, validate_output_semantics  # noqa: E402
-from addr_repair.targets import build_chat_messages  # noqa: E402
+from addr_repair.io import load_paired_records, records_hash
+from addr_repair.prompts import PRODUCTION_PROMPT_REV
+from addr_repair.schema import validate_output, validate_output_semantics
+from addr_repair.targets import build_chat_messages
+
+# Training-only chat template from the official MiniCPM TRL recipe
+# (OpenBMB/MiniCPM docs/finetune/trl.md). The base inference template has no
+# {% generation %} markers, so TRL cannot build an assistant-only loss mask
+# from it ("not training-compatible" error). This template is ChatML with no
+# think blocks; only assistant content falls inside {% generation %}.
+# TRAINING-ONLY: never saved to disk, never served. Inference reloads the
+# original tokenizer; the adapter stays fully compatible per the recipe.
+TRAIN_CHAT_TEMPLATE = (
+    "{{- bos_token }}"
+    "{%- for message in messages %}"
+    "{%- if message['role'] == 'system' %}"
+    "{{- '<|im_start|>system\\n' + message['content'] + '<|im_end|>\\n' }}"
+    "{%- elif message['role'] == 'user' %}"
+    "{{- '<|im_start|>user\\n' + message['content'] + '<|im_end|>\\n' }}"
+    "{%- elif message['role'] == 'assistant' %}"
+    "{{- '<|im_start|>assistant\\n' }}"
+    "{%- generation %}"
+    "{{- message['content'] + '<|im_end|>' }}"
+    "{%- endgeneration %}"
+    "{{- '\\n' }}"
+    "{%- endif %}"
+    "{%- endfor %}"
+    "{%- if add_generation_prompt %}"
+    "{{- '<|im_start|>assistant\\n' }}"
+    "{%- endif %}"
+)
+
+TRAIN_TEMPLATE_SOURCE = "OpenBMB/MiniCPM docs/finetune/trl.md (training-only, not saved, not served)"
+
+
+def apply_training_template(tokenizer):
+    """Swap in the training-only template; return the original for the record."""
+    original = tokenizer.chat_template
+    tokenizer.chat_template = TRAIN_CHAT_TEMPLATE
+    return original
 
 
 def _resolve(path: str | Path, base: Path) -> Path:
-    """Resolve a config path: absolute as-is, else beside the config file,
-    else beside the current working directory (repo root in normal use)."""
+    """Resolve a config path: absolute as-is, else beside the current working
+    directory (repo root in normal use), else beside the config file.
+
+    Cwd wins on purpose: committed configs are repo-root-relative, and the
+    script must behave the same no matter where the (possibly generated)
+    train config file lives — e.g. /content/train_run.yaml on Colab must not
+    redirect data paths to /content/ when a stray directory exists there.
+    """
     candidate = Path(path)
     if candidate.is_absolute():
         return candidate
+    cwd_hit = Path.cwd() / candidate
+    if cwd_hit.exists():
+        return cwd_hit
     local = base / candidate
     if local.exists():
         return local
-    return Path.cwd() / candidate
+    return cwd_hit
 
 
 def load_resolved_config(train_config_path: str | Path) -> dict:
@@ -174,13 +228,12 @@ def _latest_checkpoint(output_dir: Path) -> Path | None:
 
 
 def _empty_cuda_cache() -> None:
-    try:
-        import torch
+    if importlib.util.find_spec("torch") is None:
+        return
+    import torch
 
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-    except Exception:
-        pass
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
 
 def _repo_commit() -> str | None:
@@ -188,7 +241,7 @@ def _repo_commit() -> str | None:
         return subprocess.run(
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
         ).stdout.strip()
-    except Exception:
+    except (OSError, subprocess.SubprocessError):
         return None
 
 
@@ -212,7 +265,7 @@ def _gpu_record() -> dict:
                 "torch_version": torch.__version__,
             }
         return {"cuda_available": False, "torch_version": torch.__version__}
-    except Exception as exc:
+    except (ImportError, RuntimeError) as exc:
         return {"cuda_available": False, "error": str(exc)}
 
 
@@ -222,7 +275,7 @@ def run_dry_run(resolved: dict) -> int:
     train_pairs, train_manifest = load_split_pairs(resolved, "train")
     val_pairs, val_manifest = load_split_pairs(resolved, "val")
     _, train_stats = build_message_rows(train_pairs)
-    _, val_stats = build_message_rows(val_pairs)
+    _, _val_stats = build_message_rows(val_pairs)
 
     train_cfg = resolved["train"]
     batch = train_cfg["per_device_train_batch_size"] * train_cfg["gradient_accumulation_steps"]
@@ -232,6 +285,11 @@ def run_dry_run(resolved: dict) -> int:
     print(f"[train_sft] model={resolved['model']['model_id']} rev={resolved['model']['model_rev']}")
     print(f"[train_sft] prompt_rev={resolved['model']['prompt_rev']} (code {PRODUCTION_PROMPT_REV})")
     print(f"[train_sft] chat_template_mode={resolved['model'].get('chat_template_mode')}")
+    print(
+        f"[train_sft] training template: official MiniCPM recipe, "
+        f"sha={hashlib.sha256(TRAIN_CHAT_TEMPLATE.encode()).hexdigest()[:16]}, "
+        "gen-markers=yes, think-blocks=no (training-only, never saved/served)"
+    )
     print(
         f"[train_sft] train n={len(train_pairs)} hash={train_manifest['records_sha256'][:16]} "
         f"val n={len(val_pairs)} hash={val_manifest['records_sha256'][:16]}"
@@ -259,7 +317,8 @@ def run_dry_run(resolved: dict) -> int:
     )
     print(f"[train_sft] output_dir={train_cfg['output_dir']}")
     print("[train_sft] parity: prompt text shared with inference (build_repair_prompt); "
-          "template = model tokenizer at pinned rev; TRL reports template swap in record")
+          "training template = official recipe (recorded hash); "
+          "inference reloads original tokenizer per recipe")
     return 0
 
 
@@ -276,10 +335,10 @@ def score_val_sample(
     Comparative signal for checkpoint choice only — final evidence always comes
     from the frozen GGUF eval. Lazy heavy imports live with the caller.
     """
-    from addr_repair.parsing import parse_response  # noqa: E402
-    from addr_repair.prompts import build_repair_prompt  # noqa: E402
-    from addr_repair.schema import validate_output, validate_output_semantics  # noqa: E402
-    from addr_repair.scorer import score_records  # noqa: E402
+    from addr_repair.parsing import parse_response
+    from addr_repair.prompts import build_repair_prompt
+    from addr_repair.schema import validate_output, validate_output_semantics
+    from addr_repair.scorer import score_records
 
     sample = pairs[:max(1, max_samples)]
     rows = []
@@ -290,7 +349,7 @@ def score_val_sample(
         inputs = tokenizer(text, return_tensors="pt").to(model.device)
         out = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
         decoded = tokenizer.decode(out[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
-        payload, parse_errors = parse_response(decoded)
+        payload, _parse_errors = parse_response(decoded)
         if payload is None:
             rows.append(
                 {
@@ -318,11 +377,11 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
     ``resume=True`` continues from the latest checkpoint in ``output_dir``
     (Colab disconnect recovery); without any checkpoint it starts fresh.
     """
-    import torch  # noqa: E402
-    import transformers  # noqa: E402
-    from datasets import Dataset  # noqa: E402
-    from peft import LoraConfig  # noqa: E402
-    from trl import SFTConfig, SFTTrainer  # noqa: E402
+    import torch
+    import transformers
+    from datasets import Dataset
+    from peft import LoraConfig
+    from trl import SFTConfig, SFTTrainer
 
     assert_prompt_parity(resolved)
     train_cfg, model_cfg, lora_cfg = resolved["train"], resolved["model"], resolved["lora"]
@@ -336,21 +395,25 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
 
     model_id = model_cfg["model_id"]
     model_rev = model_cfg["model_rev"]
-    trust_remote = bool(train_cfg.get("trust_remote_code", True))
+    # Standard LlamaForCausalLM per the official recipe: no remote code needed.
+    trust_remote = bool(train_cfg.get("trust_remote_code", False))
     use_bf16 = bool(train_cfg.get("bf16", True))
     tokenizer = transformers.AutoTokenizer.from_pretrained(
-        model_id, revision=model_rev, trust_remote_code=trust_remote,
+        model_id, revision=model_rev, trust_remote_code=trust_remote, use_fast=True,
     )
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    template_before = apply_training_template(tokenizer)
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_id,
         revision=model_rev,
         trust_remote_code=trust_remote,
         dtype=torch.bfloat16 if use_bf16 else torch.float32,
         device_map="auto",
+        attn_implementation="sdpa",
     )
-    template_before = tokenizer.chat_template
+    model.config.use_cache = False
+    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     peft_config = LoraConfig(
         r=lora_cfg["r"],
         lora_alpha=lora_cfg["lora_alpha"],
@@ -366,9 +429,12 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
         per_device_train_batch_size=train_cfg["per_device_train_batch_size"],
         gradient_accumulation_steps=train_cfg["gradient_accumulation_steps"],
         learning_rate=train_cfg["learning_rate"],
+        lr_scheduler_type=train_cfg.get("lr_scheduler_type", "cosine"),
+        warmup_ratio=train_cfg.get("warmup_ratio", 0.03),
         bf16=use_bf16,
         fp16=bool(train_cfg.get("fp16", False)),
         max_length=train_cfg.get("max_seq_length", 2048),
+        packing=False,
         eval_strategy=train_cfg.get("eval_strategy", "steps"),
         eval_steps=train_cfg.get("eval_steps", 200),
         save_steps=train_cfg.get("save_steps", 200),
@@ -379,6 +445,7 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
         logging_steps=train_cfg.get("logging_steps", 50),
         report_to=train_cfg.get("report_to", "none"),
         seed=train_cfg.get("seed", 7),
+        remove_unused_columns=False,
         assistant_only_loss=True,
     )
     trainer = SFTTrainer(
@@ -426,7 +493,7 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
             adapter = checkpoint / "adapter_model.bin"
         if not adapter.is_file() and checkpoint != output_dir:
             continue
-        from peft import PeftModel  # noqa: E402
+        from peft import PeftModel
 
         plain = transformers.AutoModelForCausalLM.from_pretrained(
             base_model_id, revision=base_rev, trust_remote_code=trust_remote,
@@ -452,7 +519,11 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
         "model_rev": model_rev,
         "prompt_rev": model_cfg.get("prompt_rev"),
         "chat_template_mode": model_cfg.get("chat_template_mode"),
-        "chat_template_sha256": hashlib.sha256(
+        "training_template_sha256": hashlib.sha256(
+            TRAIN_CHAT_TEMPLATE.encode("utf-8")
+        ).hexdigest(),
+        "training_template_source": TRAIN_TEMPLATE_SOURCE,
+        "inference_template_sha256": hashlib.sha256(
             (template_before or "").encode("utf-8")
         ).hexdigest(),
         "trl_swapped_training_template": template_swapped,
@@ -481,12 +552,12 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
         },
     }
     try:
-        import trl as _trl  # noqa: E402
-        import peft as _peft  # noqa: E402
+        import peft as _peft
+        import trl as _trl
 
         record["versions"]["trl"] = _trl.__version__
         record["versions"]["peft"] = _peft.__version__
-    except Exception:
+    except ImportError:
         pass
     (output_dir / "training_record.json").write_text(
         json.dumps(record, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"

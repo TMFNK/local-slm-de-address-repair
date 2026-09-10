@@ -6,9 +6,8 @@ import pytest
 
 sys.path.insert(0, "src")
 
-from addr_repair.inference import LocalModel, run_rules  # noqa: E402
-from addr_repair.prompts import PRODUCTION_PROMPT_REV  # noqa: E402
-
+from addr_repair.inference import LocalModel, run_rules
+from addr_repair.prompts import PRODUCTION_PROMPT_REV
 
 CLEAN = {
     "name": "Example GmbH",

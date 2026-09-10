@@ -7,7 +7,6 @@ sys.path.insert(0, "src")
 
 from addr_repair.io import entity_split, load_paired_records, records_hash
 
-
 FIELDS = ["name", "road", "house_number", "postcode", "locality", "country_code"]
 
 

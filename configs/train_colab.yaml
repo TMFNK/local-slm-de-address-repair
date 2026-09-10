@@ -9,6 +9,8 @@ logging_dir: "/content/drive/MyDrive/local-slm-de-address-repair/logs"
 per_device_train_batch_size: 2
 gradient_accumulation_steps: 8
 learning_rate: 2.0e-4
+lr_scheduler_type: cosine
+warmup_ratio: 0.03
 num_train_epochs: 3
 bf16: true
 fp16: false
@@ -20,7 +22,8 @@ save_total_limit: 3
 logging_steps: 50
 report_to: none
 seed: 7
-trust_remote_code: true
+# Standard LlamaForCausalLM per the official MiniCPM TRL recipe: no remote code.
+trust_remote_code: false
 
 # Step 6 checkpoint choice (scripts/train_sft.py scores retained checkpoints
 # on this many val records; winner = max mean(review_precision, 1-damage, F1)).

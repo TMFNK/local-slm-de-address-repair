@@ -27,12 +27,12 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from addr_repair.audit import write_audit_record  # noqa: E402
-from addr_repair.inference import LocalModel, run_rules  # noqa: E402
-from addr_repair.io import load_paired_records, records_hash, sha256_file  # noqa: E402
-from addr_repair.prompts import PRODUCTION_PROMPT_REV  # noqa: E402
-from addr_repair.schema import validate_output, validate_output_semantics  # noqa: E402
-from addr_repair.scorer import score_records  # noqa: E402
+from addr_repair.audit import write_audit_record
+from addr_repair.inference import LocalModel, run_rules
+from addr_repair.io import load_paired_records, records_hash, sha256_file
+from addr_repair.prompts import PRODUCTION_PROMPT_REV
+from addr_repair.schema import validate_output, validate_output_semantics
+from addr_repair.scorer import score_records
 
 
 def _repo_commit() -> str | None:
@@ -40,7 +40,7 @@ def _repo_commit() -> str | None:
         return subprocess.run(
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
         ).stdout.strip()
-    except Exception:
+    except (OSError, subprocess.SubprocessError):
         return None
 
 

@@ -7,10 +7,11 @@ import pytest
 sys.path.insert(0, "src")
 sys.path.insert(0, "scripts")
 
-import train_sft  # noqa: E402
-from addr_repair.io import load_paired_records, records_hash, sha256_file  # noqa: E402
-from addr_repair.prompts import build_repair_prompt  # noqa: E402
-from addr_repair.targets import build_chat_messages  # noqa: E402
+import train_sft
+
+from addr_repair.io import load_paired_records, records_hash, sha256_file
+from addr_repair.prompts import build_repair_prompt
+from addr_repair.targets import build_chat_messages
 
 FIELDS = ["name", "road", "house_number", "postcode", "locality", "country_code"]
 
@@ -222,3 +223,92 @@ def test_latest_checkpoint_picks_newest(tmp_path):
 
     os.utime(old, (_time.time() - 10, _time.time() - 10))
     assert train_sft._latest_checkpoint(tmp_path) == new
+
+
+def test_resolve_prefers_cwd_over_config_dir(tmp_path, monkeypatch):
+    # Regression: /content/train_run.yaml must not redirect repo-relative
+    # data paths to /content/ when a stray directory exists there.
+    from pathlib import Path
+
+    cwd_dir = tmp_path / "repo"
+    cwd_dir.mkdir()
+    (cwd_dir / "data").mkdir()
+    (cwd_dir / "data" / "x.csv").write_text("real", encoding="utf-8")
+    base_dir = tmp_path / "elsewhere"
+    base_dir.mkdir()
+    (base_dir / "data").mkdir()
+    (base_dir / "data" / "x.csv").write_text("stray", encoding="utf-8")
+    monkeypatch.chdir(cwd_dir)
+    resolved = train_sft._resolve("data/x.csv", base_dir)
+    assert resolved == Path.cwd() / "data" / "x.csv"
+    assert resolved.read_text(encoding="utf-8") == "real"
+
+
+def test_resolve_falls_back_to_config_dir(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    cwd_dir = tmp_path / "repo"
+    cwd_dir.mkdir()
+    base_dir = tmp_path / "elsewhere"
+    base_dir.mkdir()
+    (base_dir / "data").mkdir()
+    (base_dir / "data" / "x.csv").write_text("stray", encoding="utf-8")
+    monkeypatch.chdir(cwd_dir)
+    assert train_sft._resolve("data/x.csv", base_dir) == base_dir / "data" / "x.csv"
+    assert train_sft._resolve(Path("/abs/y.csv"), base_dir) == Path("/abs/y.csv")
+
+
+def test_training_template_has_generation_markers():
+    # Without these, TRL cannot build the assistant-only loss mask and fails
+    # at trainer init ("not training-compatible") — the Colab cell-9 error.
+    assert "{%- generation %}" in train_sft.TRAIN_CHAT_TEMPLATE
+    assert "{%- endgeneration %}" in train_sft.TRAIN_CHAT_TEMPLATE
+
+
+def test_trl_recognises_training_template_markers():
+    # The exact gate that failed Colab cell 9: TRL must see generation
+    # markers, otherwise it tries (and fails) to patch the template.
+    from trl.chat_template_utils import has_generation_markers
+
+    assert has_generation_markers(train_sft.TRAIN_CHAT_TEMPLATE) is True
+
+
+def test_training_template_is_no_think():
+    assert "<think" not in train_sft.TRAIN_CHAT_TEMPLATE.lower()
+
+
+def _render(messages, add_generation_prompt=False):
+    import jinja2
+
+    # Strip generation markers the way TRL does when rendering for masking.
+    text = train_sft.TRAIN_CHAT_TEMPLATE.replace("{%- generation %}", "").replace(
+        "{%- endgeneration %}", ""
+    )
+    return jinja2.Environment().from_string(text).render(
+        messages=messages, add_generation_prompt=add_generation_prompt, bos_token="<s>"
+    )
+
+
+def test_training_template_renders_chatml_shapes():
+    messages = [
+        {"role": "system", "content": "Do repairs."},
+        {"role": "user", "content": "Fix this."},
+        {"role": "assistant", "content": '{"ok": true}'},
+    ]
+    text = _render(messages)
+    assert "<|im_start|>system\nDo repairs.<|im_end|>" in text
+    assert "<|im_start|>user\nFix this.<|im_end|>" in text
+    assert "<|im_start|>assistant\n" in text
+    assert '{"ok": true}' in text
+    prompt_only = _render(messages[:2], add_generation_prompt=True)
+    assert prompt_only.rstrip().endswith("<|im_start|>assistant")
+    assert '{"ok": true}' not in prompt_only
+
+
+def test_apply_training_template_swaps_and_returns_original():
+    class StubTokenizer:
+        chat_template = "original-template"
+
+    tok = StubTokenizer()
+    assert train_sft.apply_training_template(tok) == "original-template"
+    assert tok.chat_template == train_sft.TRAIN_CHAT_TEMPLATE

@@ -191,4 +191,4 @@ def test_semantics_accept_full_abstention_record():
     ok, _ = validate_output(payload)
     assert ok
     assert validate_output_semantics(dirty, payload) == []
-    assert set(["road", "house_number", "postcode", "country_code"]) <= set(needs_review)
+    assert {"road", "house_number", "postcode", "country_code"} <= set(needs_review)

@@ -92,7 +92,7 @@ def test_smoke_fixture_first_empty_postcode_row_abstains():
         return
     rows = [json.loads(line) for line in fixture.read_text().splitlines() if line.strip()]
     row = next(r for r in rows if not (r["dirty"].get("postcode") or "").strip())
-    target, changes, needs_review = build_evidence_preserving_target(row["dirty"], row["gold"])
+    target, _changes, needs_review = build_evidence_preserving_target(row["dirty"], row["gold"])
     assert target["postcode"] == ""
     assert "postcode" in needs_review
     assert row["gold"]["postcode"] != ""  # gold really was filled: the trap is real

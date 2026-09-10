@@ -15,17 +15,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import time
 from pathlib import Path
 
-import sys
-
 sys.path.insert(0, "src")
 
-from addr_repair.audit import write_audit_record  # noqa: E402
-from addr_repair.rules import repair_with_rules  # noqa: E402
-from addr_repair.schema import validate_output, validate_output_semantics  # noqa: E402
-from addr_repair.scorer import score_records  # noqa: E402
+from addr_repair.audit import write_audit_record
+from addr_repair.rules import repair_with_rules
+from addr_repair.schema import validate_output, validate_output_semantics
+from addr_repair.scorer import score_records
 
 MODEL_REV = "rules-floor-v1"
 

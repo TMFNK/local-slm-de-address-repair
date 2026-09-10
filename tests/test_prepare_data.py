@@ -7,7 +7,7 @@ import pytest
 sys.path.insert(0, "src")
 sys.path.insert(0, "scripts")
 
-import prepare_data  # noqa: E402
+import prepare_data
 
 FIELDS = ["name", "road", "house_number", "postcode", "locality", "country_code"]
 

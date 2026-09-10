@@ -3,7 +3,7 @@ import sys
 
 sys.path.insert(0, "src")
 
-from addr_repair.parsing import check_contract, extract_json, parse_response  # noqa: E402
+from addr_repair.parsing import check_contract, extract_json, parse_response
 
 
 def test_extract_json_plain_object():

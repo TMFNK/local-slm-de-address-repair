@@ -7,9 +7,9 @@ import pytest
 sys.path.insert(0, "src")
 sys.path.insert(0, "scripts")
 
-from addr_repair.io import load_paired_records, records_hash, sha256_file  # noqa: E402
-from evaluate_local import main as evaluate_main  # noqa: E402
+from evaluate_local import main as evaluate_main
 
+from addr_repair.io import load_paired_records, records_hash, sha256_file
 
 FIELDS = ["name", "road", "house_number", "postcode", "locality", "country_code"]
 
@@ -155,6 +155,7 @@ def test_evaluate_base_mock_scores_validity_split_and_inventions(tmp_path, monke
     # e2 has an empty dirty postcode (gold filled); the fake fills it with a
     # made-up value, so the metrics must show an invention and a semantic miss.
     import evaluate_local
+
     from addr_repair.rules import repair_with_rules
 
     raw_dir = tmp_path / "raw"

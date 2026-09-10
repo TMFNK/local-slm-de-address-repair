@@ -15,7 +15,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from addr_repair.io import (  # noqa: E402
+from addr_repair.io import (
     entity_split,
     load_paired_records,
     records_hash,
