@@ -312,3 +312,33 @@ def test_apply_training_template_swaps_and_returns_original():
     tok = StubTokenizer()
     assert train_sft.apply_training_template(tok) == "original-template"
     assert tok.chat_template == train_sft.TRAIN_CHAT_TEMPLATE
+
+
+def test_build_sft_config_constructs_real_config(tmp_path):
+    # Guards the paid-GPU path: dry-run never builds SFTConfig, so an
+    # unsupported kwarg (e.g. warmup_ratio on transformers 5.x) would only
+    # explode on Colab. This test constructs it for real.
+    cfg = _setup(tmp_path, [(_row("e1"), _row("e1"))], [(_row("e2"), _row("e2"))])
+    resolved = train_sft.load_resolved_config(cfg)
+    sft_args, dropped = train_sft.build_sft_config(
+        resolved["train"], tmp_path / "out", use_bf16=False
+    )
+    assert dropped == []
+    assert sft_args.assistant_only_loss is True
+    assert sft_args.load_best_model_at_end is True
+    assert sft_args.metric_for_best_model == "eval_loss"
+
+
+def test_build_sft_config_reports_unsupported_kwargs(tmp_path, monkeypatch):
+    from trl import SFTConfig
+
+    cfg = _setup(tmp_path, [(_row("e1"), _row("e1"))], [(_row("e2"), _row("e2"))])
+    resolved = train_sft.load_resolved_config(cfg)
+    fields = dict(SFTConfig.__dataclass_fields__)
+    removed = fields.pop("packing")
+    monkeypatch.setattr(SFTConfig, "__dataclass_fields__", fields)
+    try:
+        _, dropped = train_sft.build_sft_config(resolved["train"], tmp_path / "out", False)
+    finally:
+        fields["packing"] = removed
+    assert dropped == ["packing"]

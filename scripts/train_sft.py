@@ -322,8 +322,49 @@ def run_dry_run(resolved: dict) -> int:
     return 0
 
 
-def score_val_sample(
-    model,
+def build_sft_config(train_cfg: dict, output_dir: Path, use_bf16: bool):
+    """Build the TRL SFTConfig, dropping (and reporting) unsupported kwargs.
+
+    TRL/transformers field names drift across versions (e.g. warmup_ratio
+    missing in transformers 5.x) and the dry-run never constructs this
+    object — so a typo or drifted name would only explode on the paid GPU.
+    This helper is covered by a test that really constructs SFTConfig.
+    Returns (sft_args, dropped_kwargs).
+    """
+    from trl import SFTConfig
+
+    wanted = {
+        "output_dir": str(output_dir),
+        "num_train_epochs": train_cfg["num_train_epochs"],
+        "per_device_train_batch_size": train_cfg["per_device_train_batch_size"],
+        "gradient_accumulation_steps": train_cfg["gradient_accumulation_steps"],
+        "learning_rate": train_cfg["learning_rate"],
+        "lr_scheduler_type": train_cfg.get("lr_scheduler_type", "cosine"),
+        "warmup_steps": train_cfg.get("warmup_steps", 30),
+        "bf16": use_bf16,
+        "fp16": bool(train_cfg.get("fp16", False)),
+        "max_length": train_cfg.get("max_seq_length", 2048),
+        "packing": False,
+        "eval_strategy": train_cfg.get("eval_strategy", "steps"),
+        "eval_steps": train_cfg.get("eval_steps", 200),
+        "save_steps": train_cfg.get("save_steps", 200),
+        "save_total_limit": train_cfg.get("save_total_limit", 3),
+        "load_best_model_at_end": True,
+        "metric_for_best_model": "eval_loss",
+        "greater_is_better": False,
+        "logging_steps": train_cfg.get("logging_steps", 50),
+        "report_to": train_cfg.get("report_to", "none"),
+        "seed": train_cfg.get("seed", 7),
+        "remove_unused_columns": False,
+        "assistant_only_loss": True,
+    }
+    supported = set(SFTConfig.__dataclass_fields__)
+    dropped = sorted(k for k in wanted if k not in supported)
+    kept = {k: v for k, v in wanted.items() if k in supported}
+    return SFTConfig(**kept), dropped
+
+
+def score_val_sample(    model,
     tokenizer,
     pairs: list[dict],
     *,
@@ -381,7 +422,7 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
     import transformers
     from datasets import Dataset
     from peft import LoraConfig
-    from trl import SFTConfig, SFTTrainer
+    from trl import SFTTrainer
 
     assert_prompt_parity(resolved)
     train_cfg, model_cfg, lora_cfg = resolved["train"], resolved["model"], resolved["lora"]
@@ -423,31 +464,9 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
         bias="none",
     )
     output_dir = Path(train_cfg["output_dir"])
-    sft_args = SFTConfig(
-        output_dir=str(output_dir),
-        num_train_epochs=train_cfg["num_train_epochs"],
-        per_device_train_batch_size=train_cfg["per_device_train_batch_size"],
-        gradient_accumulation_steps=train_cfg["gradient_accumulation_steps"],
-        learning_rate=train_cfg["learning_rate"],
-        lr_scheduler_type=train_cfg.get("lr_scheduler_type", "cosine"),
-        warmup_ratio=train_cfg.get("warmup_ratio", 0.03),
-        bf16=use_bf16,
-        fp16=bool(train_cfg.get("fp16", False)),
-        max_length=train_cfg.get("max_seq_length", 2048),
-        packing=False,
-        eval_strategy=train_cfg.get("eval_strategy", "steps"),
-        eval_steps=train_cfg.get("eval_steps", 200),
-        save_steps=train_cfg.get("save_steps", 200),
-        save_total_limit=train_cfg.get("save_total_limit", 3),
-        load_best_model_at_end=True,
-        metric_for_best_model="eval_loss",
-        greater_is_better=False,
-        logging_steps=train_cfg.get("logging_steps", 50),
-        report_to=train_cfg.get("report_to", "none"),
-        seed=train_cfg.get("seed", 7),
-        remove_unused_columns=False,
-        assistant_only_loss=True,
-    )
+    sft_args, dropped_sft_kwargs = build_sft_config(train_cfg, output_dir, use_bf16)
+    if dropped_sft_kwargs:
+        print(f"[train_sft] WARNING: SFTConfig ignores unsupported args: {dropped_sft_kwargs}")
     trainer = SFTTrainer(
         model=model,
         args=sft_args,
@@ -529,6 +548,7 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
         "trl_swapped_training_template": template_swapped,
         "lora": {k: lora_cfg.get(k) for k in ("r", "lora_alpha", "lora_dropout", "target_modules")},
         "assistant_only_loss": True,
+        "dropped_sft_kwargs": dropped_sft_kwargs,
         "train_manifest_sha256": train_manifest["records_sha256"],
         "val_manifest_sha256": val_manifest["records_sha256"],
         "train_target_stats": train_stats,
