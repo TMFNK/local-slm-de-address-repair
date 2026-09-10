@@ -6,6 +6,12 @@ Same 2,000 frozen test records for rules floor, base MiniCPM5, and SFT MiniCPM5.
 - Damage rate (clean fields changed wrongly / all clean fields)
 - Review precision + coverage
 - JSON-schema validity
+- Semantic validity (no semantic errors), parse rate, contract validity
+  (schema AND semantics — the usable-output rate)
+- Inventions / invention rate: fields filled from an empty dirty input.
+  A correct repair requires a non-empty dirty field — filling an empty field
+  is invention even when the guess matches gold, never a true positive.
+  Correct abstention (kept empty + flagged) still counts as a recall miss.
 - Runtime: model-load time, median and p95 record time, and peak memory
 
 Exact-value and normalized-value scores stay separate when they disagree. After reading the frozen result: no prompt, normalizer, model, or test-data changes.

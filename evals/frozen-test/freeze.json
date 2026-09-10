@@ -5,17 +5,17 @@
     "temperature": 0.0,
     "top_p": 1.0
   },
-  "gguf": "models/MiniCPM5-1B-Q4_K_M.gguf",
-  "gguf_sha256": null,
+  "gguf": "models/sft-Q4_K_M.gguf",
+  "gguf_sha256": "c03e5b9c66fd43a8191ecf0eaa74351bc65e246ccef877db08d0944103703624",
   "llama_cpp_rev": "b31b71f3a076bfc4278daad442203a9c51c6e676",
   "manifest": "data/manifests/test.json",
   "manifest_records_sha256": "f07671a33490f6c31b90c5cc61b28d674fc436061073b22a6e273fd57595c516",
-  "model_rev": "rules-floor-v1",
+  "model_rev": "6aeb7a169c76bbc18d351be78bfbdeb99e7cde557acbd17b140d26092c9c8ba",
   "n_ctx": 2048,
   "platform": "Darwin arm64",
   "prompt_rev": "v2",
-  "repo_commit": "b75f50d72947f496bd068050dea0f7f01910b3d1",
+  "repo_commit": "911cb9fe14101ecfa0ece8a2d67020aa0960ec6c",
   "source_clean_sha256": "78c852e3a5680a7460732b67ab87d82484a718297190fa8852af73a80817a192",
   "source_dirty_sha256": "2ef8ab1424c8c357af1aeaecef12b376cb7f20616437035f2753d0b2f2ac86ef",
-  "system": "rules"
+  "system": "sft"
 }

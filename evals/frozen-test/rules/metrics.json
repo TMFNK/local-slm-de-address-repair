@@ -15,7 +15,7 @@
     "n_ctx": 2048,
     "platform": "Darwin arm64",
     "prompt_rev": "v2",
-    "repo_commit": "b75f50d72947f496bd068050dea0f7f01910b3d1",
+    "repo_commit": "911cb9fe14101ecfa0ece8a2d67020aa0960ec6c",
     "source_clean_sha256": "78c852e3a5680a7460732b67ab87d82484a718297190fa8852af73a80817a192",
     "source_dirty_sha256": "2ef8ab1424c8c357af1aeaecef12b376cb7f20616437035f2753d0b2f2ac86ef",
     "system": "rules"
@@ -28,11 +28,12 @@
         "correct_abstentions": 1647,
         "correct_repairs": 0,
         "damage_rate": 0.0,
+        "inventions": 0,
         "missed_repairs": 0,
         "repair_precision": 0.0,
         "repair_recall": 0.0,
-        "review_flagged": 0,
-        "review_precision": 0.0,
+        "review_flagged": 1647,
+        "review_precision": 1.0,
         "wrong_repairs": 0
       },
       "house_number": {
@@ -41,6 +42,7 @@
         "correct_abstentions": 421,
         "correct_repairs": 0,
         "damage_rate": 0.0,
+        "inventions": 0,
         "missed_repairs": 0,
         "repair_precision": 0.0,
         "repair_recall": 0.0,
@@ -54,6 +56,7 @@
         "correct_abstentions": 384,
         "correct_repairs": 0,
         "damage_rate": 0.0,
+        "inventions": 0,
         "missed_repairs": 4,
         "repair_precision": 0.0,
         "repair_recall": 0.0,
@@ -67,6 +70,7 @@
         "correct_abstentions": 754,
         "correct_repairs": 2,
         "damage_rate": 0.0,
+        "inventions": 0,
         "missed_repairs": 0,
         "repair_precision": 1.0,
         "repair_recall": 0.0026,
@@ -80,6 +84,7 @@
         "correct_abstentions": 387,
         "correct_repairs": 0,
         "damage_rate": 0.0,
+        "inventions": 0,
         "missed_repairs": 0,
         "repair_precision": 0.0,
         "repair_recall": 0.0,
@@ -93,6 +98,7 @@
         "correct_abstentions": 423,
         "correct_repairs": 322,
         "damage_rate": 0.0,
+        "inventions": 0,
         "missed_repairs": 8,
         "repair_precision": 0.9758,
         "repair_recall": 0.4276,
@@ -101,16 +107,21 @@
         "wrong_repairs": 8
       }
     },
+    "contract_validity": 1.0,
     "damage_rate": 0.0,
+    "invention_rate": 0.0,
+    "inventions": 0,
     "latency_ms_median": 0.0,
     "latency_ms_n": 2000,
     "latency_ms_p95": 0.0,
     "n": 2000,
+    "parse_rate": 1.0,
     "repair_f1": 0.1382,
     "repair_precision": 0.9643,
     "repair_recall": 0.0744,
-    "review_coverage": 0.073,
+    "review_coverage": 0.2102,
     "review_precision": 1.0,
-    "schema_validity": 0.1765
+    "schema_validity": 1.0,
+    "semantic_validity": 1.0
   }
 }
