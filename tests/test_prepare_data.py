@@ -73,12 +73,28 @@ def test_skip_archive_allows_subset_fetch(tmp_path, monkeypatch):
         name: json.loads((tmp_path / "manifests" / f"{name}.json").read_text(encoding="utf-8"))
         for name in ("train", "val", "test")
     }
+    smoke_manifest = json.loads(
+        (tmp_path / "smoke" / "manifest.json").read_text(encoding="utf-8")
+    )
+    smoke_pairs = [
+        json.loads(line)
+        for line in (tmp_path / "smoke" / "pairs.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    smoke_records = [
+        json.loads(line)
+        for line in (tmp_path / "smoke" / "records.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
     assignments = {
         entity_id: name
         for name, manifest in manifests.items()
         for entity_id in manifest["entity_ids"]
     }
     assert assignments["e1"] == assignments["e2"]
+    assert smoke_manifest["split"] == "train"
+    assert smoke_manifest["test_is_original_pairs"] is False
+    assert set(smoke_manifest["entity_ids"]) <= set(manifests["train"]["entity_ids"])
+    assert not set(smoke_manifest["entity_ids"]) & set(manifests["test"]["entity_ids"])
+    assert smoke_records == [record["dirty"] for record in smoke_pairs]
 
 
 def test_missing_archive_refuses_without_flag(tmp_path, monkeypatch):

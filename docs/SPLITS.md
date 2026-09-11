@@ -19,6 +19,7 @@ files to the six fields in the output contract. `country_code` is
 canonicalized to uppercase ISO alpha-2 (`de` becomes `DE`) in the same
 projection step, matching the JSON Schema.
 
-The smoke fixture still comes from the test partition in this intermediate
-revision. It must not be used for prompt development; the next fix moves it
-to training or validation before the new experiment starts.
+The 100-record smoke fixture comes from the training partition
+(`smoke_split: train`). It is used for the rules-floor smoke gate and prompt
+development only. The final test partition remains reserved for the one-shot
+evaluation and is not read during prompt development.

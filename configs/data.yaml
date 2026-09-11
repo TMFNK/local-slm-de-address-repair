@@ -16,5 +16,6 @@ splits:
   test_entities: 2000
 
 # Test set uses only original paired dirty/clean rows. No synthetic rows in test.
+smoke_split: "train"
 smoke_fixture: "fixtures/smoke_100/"
 manifests_dir: "data/manifests/"

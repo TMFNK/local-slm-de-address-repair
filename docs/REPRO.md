@@ -24,9 +24,10 @@ manifests. It writes one manifest per split using complete canonical
 dirty-plus-gold groups. Pass `--force` only when deliberately regenerating
 those files.
 
-In this intermediate revision, the paired 100-record smoke fixture still
-comes from the test partition. Do not use it for prompt development; the next
-fix moves smoke and prompt-development records to training or validation.
+The paired 100-record smoke fixture comes from the training partition
+(`smoke_split: train`). It is safe to use for the rules-floor smoke gate and
+prompt development. Keep the test partition unread until the one-shot frozen
+evaluation.
 
 The rules-floor smoke runner is the first experiment gate:
 

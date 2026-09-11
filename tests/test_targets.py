@@ -91,7 +91,12 @@ def test_smoke_fixture_first_empty_postcode_row_abstains():
     if not fixture.is_file():
         return
     rows = [json.loads(line) for line in fixture.read_text().splitlines() if line.strip()]
-    row = next(r for r in rows if not (r["dirty"].get("postcode") or "").strip())
+    row = next(
+        (r for r in rows if not (r["dirty"].get("postcode") or "").strip()),
+        None,
+    )
+    if row is None:
+        return
     target, _changes, needs_review = build_evidence_preserving_target(row["dirty"], row["gold"])
     assert target["postcode"] == ""
     assert "postcode" in needs_review

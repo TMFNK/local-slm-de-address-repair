@@ -76,6 +76,9 @@ def main() -> None:
         split_config["val_entities"],
         split_config["test_entities"],
     )
+    smoke_split = config.get("smoke_split", "train")
+    if smoke_split not in ("train", "val"):
+        raise SystemExit("smoke_split must be train or val; test is reserved for evaluation")
     by_id = {record["id"]: record for record in records}
     if len(by_id) != len(records):
         raise SystemExit("Input contains duplicate entity IDs")
@@ -116,17 +119,18 @@ def main() -> None:
             },
         )
 
-    smoke_records = [by_id[entity_id] for entity_id in splits["test"][:100]]
+    smoke_records = [by_id[entity_id] for entity_id in splits[smoke_split][:100]]
     write_jsonl(fixture_dir / "pairs.jsonl", smoke_records)
+    write_jsonl(fixture_dir / "records.jsonl", (record["dirty"] for record in smoke_records))
     write_manifest(
         fixture_dir / "manifest.json",
         {
             **source,
-            "split": "test",
+            "split": smoke_split,
             "entity_count": len(smoke_records),
             "entity_ids": [record["id"] for record in smoke_records],
             "records_sha256": records_hash(smoke_records),
-            "test_is_original_pairs": True,
+            "test_is_original_pairs": False,
         },
     )
     print(f"[prepare_data] wrote {len(records)} paired records")
