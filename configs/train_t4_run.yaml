@@ -1,6 +1,7 @@
-# Colab GPU training. Notebook calls scripts/train_sft.py with this file.
-# Ampere and newer (bf16, 200-record honesty sweep). The 2026-09-10 T4 run
-# used the resolved file configs/train_t4_run.yaml.
+# Resolved Colab T4 config from the 2026-09-10 SFT run (checkpoint-939).
+# Derived at runtime from configs/train_colab.yaml: Tesla T4 has no bf16
+# (compute capability 7.5), so the notebook wrote fp16 and a smaller honesty
+# sweep. Do not treat configs/train_colab.yaml as this run's config.
 base_config: "configs/model.yaml"
 lora_config: "configs/lora.yaml"
 data_config: "configs/data.yaml"
@@ -15,8 +16,8 @@ lr_scheduler_type: cosine
 # ~3% of ~939 steps; warmup_ratio does not exist in transformers 5.x.
 warmup_steps: 30
 num_train_epochs: 3
-bf16: true
-fp16: false
+bf16: false
+fp16: true
 max_seq_length: 2048
 eval_strategy: steps
 eval_steps: 200
@@ -28,7 +29,7 @@ seed: 7
 # Standard LlamaForCausalLM per the official MiniCPM TRL recipe: no remote code.
 trust_remote_code: false
 
-# Step 6 checkpoint choice (scripts/train_sft.py scores retained checkpoints
-# on this many val records; winner = max mean(review_precision, 1-damage, F1)).
-val_samples: 200
-val_gen_max_tokens: 512
+# Honesty selection on a T4: 100 val records, shorter generation.
+# Winner = max mean(review_precision, 1-damage, F1).
+val_samples: 100
+val_gen_max_tokens: 256

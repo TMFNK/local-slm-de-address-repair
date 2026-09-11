@@ -151,12 +151,14 @@ keep identical canonical dirty-plus-gold pairs in one partition and target
 Dataset manifests, checksums, fixtures, configuration revisions, and result
 metadata provide the reproduction boundary.
 
-Training follows the MiniCPM5 LoRA recipe through the thin Colab runner in
+Training follows the MiniCPM5 LoRA recipe through
 [`notebooks/colab_sft.ipynb`](notebooks/colab_sft.ipynb): TRL LoRA SFT on
 evidence-preserving targets, assistant-only loss, checkpoint picked on
-validation honesty metrics (checkpoint-939, score 0.769). The winning
-adapter (`6aeb7a16…c9c8ba`) was merged and converted with pinned
-llama.cpp `b31b71f`. Local serving uses
+validation honesty metrics. The published T4 run is
+[`configs/train_t4_run.yaml`](configs/train_t4_run.yaml) (fp16, 100 val
+records) with records in [`evals/sft-v1/`](evals/sft-v1/) (checkpoint-939,
+score 0.769, adapter `6aeb7a16…c9c8ba9`). Merge and GGUF commands are in
+[`docs/REPRO.md`](docs/REPRO.md). Local serving uses
 [`llama.cpp`](https://github.com/ggml-org/llama.cpp); base and tuned models
 share prompt v2, decoder settings (temp 0.0, top_p 1.0, seed 7), context
 2048, and Q4_K_M quantization.
