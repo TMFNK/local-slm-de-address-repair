@@ -13,6 +13,7 @@
         "repair_recall": 0.0,
         "review_flagged": 0,
         "review_precision": 0.0,
+        "unsupported_additions": 0,
         "wrong_repairs": 0
       },
       "house_number": {
@@ -26,6 +27,7 @@
         "repair_recall": 0.0,
         "review_flagged": 11,
         "review_precision": 1.0,
+        "unsupported_additions": 0,
         "wrong_repairs": 0
       },
       "locality": {
@@ -39,6 +41,7 @@
         "repair_recall": 0.0,
         "review_flagged": 0,
         "review_precision": 0.0,
+        "unsupported_additions": 0,
         "wrong_repairs": 0
       },
       "name": {
@@ -52,6 +55,7 @@
         "repair_recall": 0.0,
         "review_flagged": 0,
         "review_precision": 0.0,
+        "unsupported_additions": 0,
         "wrong_repairs": 0
       },
       "postcode": {
@@ -65,6 +69,7 @@
         "repair_recall": 0.0,
         "review_flagged": 15,
         "review_precision": 1.0,
+        "unsupported_additions": 0,
         "wrong_repairs": 0
       },
       "road": {
@@ -78,6 +83,7 @@
         "repair_recall": 0.4848,
         "review_flagged": 9,
         "review_precision": 1.0,
+        "unsupported_additions": 0,
         "wrong_repairs": 0
       }
     },
@@ -89,7 +95,9 @@
     "review_field_rate": 0.0583,
     "review_precision": 1.0,
     "review_record_coverage": 0.22,
-    "schema_validity": 0.18
+    "schema_validity": 0.18,
+    "unsupported_addition_rate": 0.0,
+    "unsupported_additions": 0
   },
   "model_rev": "rules-floor-v1",
   "system": "rules-floor"

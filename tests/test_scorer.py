@@ -158,6 +158,34 @@ def test_scorer_counts_wrong_invention_once():
     assert metrics["by_field"]["postcode"]["inventions"] == 1
 
 
+def test_scorer_counts_wrong_nonempty_addition_separately():
+    dirty = {
+        "name": "Pfarrhaus",
+        "road": "Heinrich-Schliemann-Straße",
+        "house_number": "4",
+        "postcode": "23942",
+        "locality": "Kalkhorst",
+        "country_code": "DE",
+    }
+    metrics = score_records(
+        [
+            {
+                "dirty": dirty,
+                "gold": dict(dirty),
+                "pred": {**dirty, "name": "Pfarrhaus Kalkhorst"},
+                "needs_review": [],
+                "schema_ok": True,
+                "semantic_ok": True,
+                "parsed": True,
+            }
+        ]
+    )
+    assert metrics["inventions"] == 0
+    assert metrics["unsupported_additions"] == 1
+    assert metrics["unsupported_addition_rate"] == round(1 / 6, 4)
+    assert metrics["by_field"]["name"]["unsupported_additions"] == 1
+
+
 def test_scorer_abstention_still_counts_as_recall_miss():
     # Step 5 contract: honest abstention is correct behaviour but still a
     # recall miss on the gold-based test set. Locks the reported tension.

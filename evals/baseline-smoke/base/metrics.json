@@ -33,6 +33,7 @@
         "repair_recall": 0.2195,
         "review_flagged": 35,
         "review_precision": 0.9714,
+        "unsupported_additions": 0,
         "wrong_repairs": 4
       },
       "house_number": {
@@ -46,6 +47,7 @@
         "repair_recall": 0.0,
         "review_flagged": 19,
         "review_precision": 0.3684,
+        "unsupported_additions": 0,
         "wrong_repairs": 7
       },
       "locality": {
@@ -59,6 +61,7 @@
         "repair_recall": 0.1176,
         "review_flagged": 9,
         "review_precision": 0.1111,
+        "unsupported_additions": 0,
         "wrong_repairs": 7
       },
       "name": {
@@ -72,6 +75,7 @@
         "repair_recall": 0.0,
         "review_flagged": 0,
         "review_precision": 0.0,
+        "unsupported_additions": 0,
         "wrong_repairs": 2
       },
       "postcode": {
@@ -85,6 +89,7 @@
         "repair_recall": 0.0,
         "review_flagged": 20,
         "review_precision": 0.7,
+        "unsupported_additions": 0,
         "wrong_repairs": 14
       },
       "road": {
@@ -98,6 +103,7 @@
         "repair_recall": 0.0,
         "review_flagged": 12,
         "review_precision": 0.3333,
+        "unsupported_additions": 0,
         "wrong_repairs": 5
       }
     },
@@ -112,6 +118,8 @@
     "review_field_rate": 0.185,
     "review_precision": 0.6316,
     "review_record_coverage": 0.68,
-    "schema_validity": 0.33
+    "schema_validity": 0.33,
+    "unsupported_addition_rate": 0.0,
+    "unsupported_additions": 0
   }
 }

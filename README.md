@@ -106,17 +106,19 @@ generalization. The tuned model
 is LoRA checkpoint-939 (3 epochs, Colab T4, fp16), merged and exported
 as Q4_K_M GGUF with pinned llama.cpp `b31b71f`.
 
-| System | Precision | Recall | F1 | Damage | Inventions | Review precision | Schema | Contract | p50 |
-|---|---|---|---|---|---|---|---|---|---|
-| Rules floor | 0.9643 | 0.0744 | 0.1382 | 0.0 | 0 | 1.0 | 1.0 | 1.0 | 0 ms |
-| Base MiniCPM5 | 0.0311 | 0.0092 | 0.0142 | 0.0169 | 898 | 0.5927 | 0.664 | 0.0 | 1620 ms |
-| SFT MiniCPM5 | 0.8231 | 0.2438 | 0.3762 | 0.0114 | 0 | 0.9996 | 0.994 | 0.9665 | 1633 ms |
+| System | Precision | Recall | F1 | Damage | Empty-field fills | Unsupported additions | Review precision | Schema | Contract | p50 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Rules floor | 0.9643 | 0.0744 | 0.1382 | 0.0 | 0 | 0 | 1.0 | 1.0 | 1.0 | 0 ms |
+| Base MiniCPM5 | 0.0311 | 0.0092 | 0.0142 | 0.0169 | 898 | 0 | 0.5927 | 0.664 | 0.0 | 1620 ms |
+| SFT MiniCPM5 | 0.8231 | 0.2438 | 0.3762 | 0.0114 | 0 | 248 | 0.9996 | 0.994 | 0.9665 | 1633 ms |
 
 The tuned model repairs about three times what the rules floor repairs
 (recall 0.24 vs 0.07, F1 0.38 vs 0.14) at lower precision (0.82 vs
-0.96). It never fills in an empty field: 0 inventions against 898 for
-the untuned base. Damage is 0.0114, between the rules floor (0.0) and
-the base (0.0169). Strongest fields are road (precision 0.96, recall
+0.96). It never fills in an empty field: 0 empty-field fills against 898
+for the untuned base. It still makes 248 unsupported additions, where a
+prediction extends a non-empty input value with extra tokens. Damage is
+0.0114, between the rules floor (0.0) and the base (0.0169). Strongest
+fields are road (precision 0.96, recall
 0.61) and locality (0.93, 0.55). Most of the damage sits in the name
 field (rate 0.0442, 55 of 87 events).
 

@@ -10,9 +10,14 @@ Same 2,000 frozen test records for rules floor, base MiniCPM5, and SFT MiniCPM5.
 - JSON-schema validity
 - Semantic validity (no semantic errors), parse rate, contract validity
   (schema AND semantics — the usable-output rate)
-- Inventions / invention rate: fields filled from an empty dirty input.
+- Empty-field fills / empty-field fill rate: fields filled from an empty dirty
+  input. The historical metric keys are `inventions` and `invention_rate`.
   A correct repair requires a non-empty dirty field — filling an empty field
-  is invention even when the guess matches gold, never a true positive.
+  never counts as a true positive, even when the guess matches gold.
+- `unsupported_additions` / `unsupported_addition_rate`: predictions that
+  retain a non-empty dirty value as a contiguous token sequence while adding
+  extra tokens. This diagnostic catches unsupported additions such as
+  `Pfarrhaus` → `Pfarrhaus Kalkhorst`.
   Correct abstention (kept empty + flagged) still counts as a recall miss.
 - Runtime: model-load time, median and p95 record time, and peak memory
 
