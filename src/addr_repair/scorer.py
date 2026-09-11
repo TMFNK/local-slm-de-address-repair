@@ -48,6 +48,7 @@ def score_records(rows: list[dict]) -> dict:
     damaged = clean_total = 0
     review_hits = review_total = 0
     review_flagged = 0
+    review_records = 0
     schema_ok = 0
     semantic_ok = 0
     parsed_ok = 0
@@ -117,6 +118,8 @@ def score_records(rows: list[dict]) -> dict:
                     damaged += 1
         flagged = row.get("needs_review", [])
         review_flagged += len(flagged)
+        if flagged:
+            review_records += 1
         for field in flagged:
             if field not in field_metrics:
                 continue
@@ -156,7 +159,8 @@ def score_records(rows: list[dict]) -> dict:
         "repair_f1": round(f1, 4),
         "damage_rate": round(damaged / clean_total, 4) if clean_total else 0.0,
         "review_precision": round(review_hits / review_total, 4) if review_total else 0.0,
-        "review_coverage": round(review_flagged / (n * len(FIELDS)), 4),
+        "review_field_rate": round(review_flagged / (n * len(FIELDS)), 4),
+        "review_record_coverage": round(review_records / n, 4) if rows else 0.0,
         "schema_validity": round(schema_ok / n, 4),
         "semantic_validity": round(semantic_ok / n, 4),
         "parse_rate": round(parsed_ok / n, 4),

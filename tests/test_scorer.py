@@ -27,6 +27,8 @@ def test_scorer_counts_repair_and_damage():
     assert metrics["repair_recall"] == 1.0
     assert metrics["damage_rate"] > 0.0
     assert metrics["schema_validity"] == 1.0
+    assert metrics["review_field_rate"] == 0.0
+    assert metrics["review_record_coverage"] == 0.0
     assert metrics["by_field"]["road"]["correct_repairs"] == 1
     assert metrics["by_field"]["road"]["repair_recall"] == 1.0
 
@@ -55,6 +57,8 @@ def test_scorer_counts_abstention_and_review_for_missing_input():
     assert metrics["by_field"]["road"]["correct_abstentions"] == 1
     assert metrics["by_field"]["road"]["review_precision"] == 1.0
     assert metrics["review_precision"] == 1.0
+    assert metrics["review_field_rate"] == round(1 / 6, 4)
+    assert metrics["review_record_coverage"] == 1.0
 
 
 def test_scorer_does_not_reward_invented_correct_gold():

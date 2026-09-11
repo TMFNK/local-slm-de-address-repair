@@ -119,8 +119,9 @@
     "repair_f1": 0.3762,
     "repair_precision": 0.8231,
     "repair_recall": 0.2438,
-    "review_coverage": 0.2095,
+    "review_field_rate": 0.2095,
     "review_precision": 0.9996,
+    "review_record_coverage": 0.8485,
     "schema_validity": 0.994,
     "semantic_validity": 0.9665
   }

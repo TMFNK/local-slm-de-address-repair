@@ -4,7 +4,9 @@ Same 2,000 frozen test records for rules floor, base MiniCPM5, and SFT MiniCPM5.
 
 - Repair precision / recall / F1 (field level, vs paired gold)
 - Damage rate (clean fields changed wrongly / all clean fields)
-- Review precision + coverage
+- Review precision
+- `review_field_rate` (flagged fields / all field slots)
+- `review_record_coverage` (records with at least one review flag / all records)
 - JSON-schema validity
 - Semantic validity (no semantic errors), parse rate, contract validity
   (schema AND semantics — the usable-output rate)
