@@ -138,7 +138,7 @@ git checkout b31b71f3a076bfc4278daad442203a9c51c6e676
 cmake -B build -DGGML_CUDA=OFF
 cmake --build build --config Release -j2 --target llama-quantize
 
-uv run --with gguf python /content/llama.cpp/convert_hf_to_gguf.py \
+uv run --with gguf --with sentencepiece python /content/llama.cpp/convert_hf_to_gguf.py \
   /content/drive/MyDrive/local-slm-de-address-repair/merged-sft \
   --outfile /content/drive/MyDrive/local-slm-de-address-repair/sft-f16.gguf \
   --outtype f16
