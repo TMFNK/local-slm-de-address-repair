@@ -18,10 +18,15 @@ metadata and checksums in `configs/data.yaml`, run:
 uv run python scripts/prepare_data.py --config configs/data.yaml
 ```
 
-The command refuses incomplete pairs, duplicate IDs, insufficient entity
-counts, or accidental replacement of generated manifests. It writes one
-manifest per split and a paired 100-record fixture from the held-out test
-partition. Pass `--force` only when deliberately regenerating those files.
+The command refuses incomplete pairs, duplicate IDs, insufficient records,
+unfillable duplicate-content groups, or accidental replacement of generated
+manifests. It writes one manifest per split using complete canonical
+dirty-plus-gold groups. Pass `--force` only when deliberately regenerating
+those files.
+
+In this intermediate revision, the paired 100-record smoke fixture still
+comes from the test partition. Do not use it for prompt development; the next
+fix moves smoke and prompt-development records to training or validation.
 
 The rules-floor smoke runner is the first experiment gate:
 

@@ -99,8 +99,10 @@ data is available.
 
 ## Results
 
-Frozen test on 2026-09-10: the same 2,000 held-out records through all
-three systems, scored with the same field-level scorer. The tuned model
+Historical frozen test on 2026-09-10: the same 2,000 records through all
+three systems, scored with the same field-level scorer. These results use the
+pre-fix UUID-only split and must not be described as clean held-out
+generalization. The tuned model
 is LoRA checkpoint-939 (3 epochs, Colab T4, fp16), merged and exported
 as Q4_K_M GGUF with pinned llama.cpp `b31b71f`.
 
@@ -141,8 +143,9 @@ The metric definitions live in [`docs/EVAL.md`](docs/EVAL.md).
 The address pairs come from the published
 [Clean Me If You Can](https://github.com/D2IP-TUB/Clean-Me-If-You-Can) dataset.
 The source data is derived from OpenStreetMap and is distributed under ODbL
-1.0. Raw records are not committed to this repository. Entity-disjoint splits
-are 5,000 train / 1,000 validation / 2,000 test, pinned by manifest hashes.
+1.0. Raw records are not committed to this repository. Pair-grouped splits
+keep identical canonical dirty-plus-gold pairs in one partition and target
+5,000 train / 1,000 validation / 2,000 test rows, pinned by manifest hashes.
 Dataset manifests, checksums, fixtures, configuration revisions, and result
 metadata provide the reproduction boundary.
 

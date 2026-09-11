@@ -16,8 +16,8 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from addr_repair.io import (
-    entity_split,
     load_paired_records,
+    pair_group_split,
     records_hash,
     sha256_file,
     write_jsonl,
@@ -70,8 +70,8 @@ def main() -> None:
 
     records = load_paired_records(dirty_path, clean_path, config.get("id_field", "id"))
     split_config = config["splits"]
-    splits = entity_split(
-        [record["id"] for record in records],
+    splits = pair_group_split(
+        records,
         split_config["train_entities"],
         split_config["val_entities"],
         split_config["test_entities"],

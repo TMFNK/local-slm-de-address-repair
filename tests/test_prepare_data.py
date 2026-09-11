@@ -27,11 +27,17 @@ def _row(entity_id):
 def _setup(tmp_path):
     raw_dir = tmp_path / "raw"
     raw_dir.mkdir()
+    rows = [
+        _row("e1"),
+        _row("e2"),
+        {**_row("e3"), "road": "Hauptstraße"},
+        {**_row("e4"), "road": "Bahnhofstraße"},
+    ]
     for name in ("dirty.csv", "clean.csv"):
         with (raw_dir / name).open("w", newline="", encoding="utf-8") as fh:
             writer = csv.DictWriter(fh, fieldnames=["id", *FIELDS])
             writer.writeheader()
-            writer.writerows([_row(f"e{i}") for i in range(1, 5)])
+            writer.writerows(rows)
     (tmp_path / "data.yaml").write_text(
         "source_repo: https://example.invalid/repo\n"
         "zenodo_url: https://example.invalid/record\n"
@@ -62,6 +68,17 @@ def test_skip_archive_allows_subset_fetch(tmp_path, monkeypatch):
     assert manifest["archive_sha256"] is None
     assert manifest["archive_skipped"] is True
     assert manifest["entity_count"] == 2
+
+    manifests = {
+        name: json.loads((tmp_path / "manifests" / f"{name}.json").read_text(encoding="utf-8"))
+        for name in ("train", "val", "test")
+    }
+    assignments = {
+        entity_id: name
+        for name, manifest in manifests.items()
+        for entity_id in manifest["entity_ids"]
+    }
+    assert assignments["e1"] == assignments["e2"]
 
 
 def test_missing_archive_refuses_without_flag(tmp_path, monkeypatch):

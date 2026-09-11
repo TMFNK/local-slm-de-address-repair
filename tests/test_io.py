@@ -5,7 +5,7 @@ import pytest
 
 sys.path.insert(0, "src")
 
-from addr_repair.io import entity_split, load_paired_records, records_hash
+from addr_repair.io import load_paired_records, pair_group_split, records_hash
 
 FIELDS = ["name", "road", "house_number", "postcode", "locality", "country_code"]
 
@@ -29,14 +29,45 @@ def _row(entity_id, road):
     }
 
 
-def test_entity_split_is_sorted_and_disjoint():
-    result = entity_split(["e3", "e1", "e2", "e4"], 2, 1, 1)
-    assert result == {"train": ["e1", "e2"], "val": ["e3"], "test": ["e4"]}
+def test_pair_group_split_keeps_duplicate_pairs_together():
+    def pair(entity_id, dirty_road, gold_road):
+        return {
+            "id": entity_id,
+            "dirty": {**_row(entity_id, dirty_road), "id": None},
+            "gold": {**_row(entity_id, gold_road), "id": None},
+        }
+
+    records = [
+        pair("e1", "Musterstr.", "Musterstraße"),
+        pair("e2", "Musterstr.", "Musterstraße"),
+        pair("e3", "Hauptstr.", "Hauptstraße"),
+        pair("e4", "Bahnhofstr.", "Bahnhofstraße"),
+    ]
+
+    result = pair_group_split(records, 2, 1, 1)
+    assignments = {
+        entity_id: split
+        for split, entity_ids in result.items()
+        for entity_id in entity_ids
+    }
+
+    assert {len(entity_ids) for entity_ids in result.values()} == {1, 2}
+    assert assignments["e1"] == assignments["e2"]
+    assert set(assignments) == {"e1", "e2", "e3", "e4"}
 
 
-def test_entity_split_rejects_too_few_entities():
-    with pytest.raises(ValueError, match="need 4 unique entities"):
-        entity_split(["e1", "e2"], 2, 1, 1)
+def test_pair_group_split_rejects_unfillable_group_size():
+    records = [
+        {
+            "id": f"e{i}",
+            "dirty": _row(f"e{i}", "Musterstr."),
+            "gold": _row(f"e{i}", "Musterstraße"),
+        }
+        for i in range(2)
+    ]
+
+    with pytest.raises(ValueError, match="without splitting"):
+        pair_group_split(records, 1, 1, 0)
 
 
 def test_load_paired_records_preserves_dirty_and_gold(tmp_path):

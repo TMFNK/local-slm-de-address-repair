@@ -24,23 +24,68 @@ def write_manifest(path: str | Path, payload: dict) -> Path:
     return target
 
 
-def entity_split(ids: list[str], train: int, val: int, test: int, seed: int = 7) -> dict:
-    """Return deterministic, disjoint entity-id partitions.
-
-    ``seed`` is retained in the API for an explicit future policy change. The
-    current policy sorts IDs, which makes a manifest independent of hash seed
-    and row order.
-    """
-    del seed
-    ordered = sorted(set(ids))
-    required = train + val + test
-    if len(ordered) < required:
-        raise ValueError(f"need {required} unique entities, found {len(ordered)}")
-    return {
-        "train": ordered[:train],
-        "val": ordered[train : train + val],
-        "test": ordered[train + val : train + val + test],
+def pair_fingerprint(record: dict) -> str:
+    """Return a canonical fingerprint for one dirty-plus-gold pair."""
+    pair = {
+        side: {field: str(record[side].get(field) or "") for field in FIELDS}
+        for side in ("dirty", "gold")
     }
+    encoded = json.dumps(pair, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def pair_group_split(
+    records: list[dict], train: int, val: int, test: int
+) -> dict[str, list[str]]:
+    """Return deterministic splits without separating duplicate content groups.
+
+    Groups are ordered by fingerprint. Each group is assigned wholly to one
+    split, and only complete groups that fit the requested row count are used.
+    """
+    targets = {"train": train, "val": val, "test": test}
+    if any(value < 0 for value in targets.values()):
+        raise ValueError("split sizes must be non-negative")
+    if len(records) < sum(targets.values()):
+        raise ValueError(f"need {sum(targets.values())} records, found {len(records)}")
+
+    groups: dict[str, list[str]] = {}
+    for record in records:
+        groups.setdefault(pair_fingerprint(record), []).append(record["id"])
+
+    result: dict[str, list[str]] = {name: [] for name in targets}
+    available = sorted(groups.items(), key=lambda item: (-len(item[1]), item[0]))
+    for split_name, target in targets.items():
+        if target == 0:
+            continue
+        previous = [-1] * (target + 1)
+        previous[0] = -2
+        for index, (_, ids) in enumerate(available):
+            size = len(ids)
+            if size > target:
+                continue
+            for total in range(target, size - 1, -1):
+                if previous[total] == -1 and previous[total - size] != -1:
+                    previous[total] = index
+            if previous[target] != -1:
+                break
+        if previous[target] == -1:
+            raise ValueError(
+                f"cannot allocate {target} records to {split_name} without splitting "
+                "a duplicate-content group"
+            )
+        chosen: set[int] = set()
+        total = target
+        while total:
+            index = previous[total]
+            chosen.add(index)
+            total -= len(available[index][1])
+        for index, (_, ids) in enumerate(available):
+            if index in chosen:
+                result[split_name].extend(ids)
+        available = [
+            group for index, group in enumerate(available) if index not in chosen
+        ]
+    return result
 
 
 def _read_rows(path: Path) -> list[dict[str, str]]:
