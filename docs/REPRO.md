@@ -163,34 +163,51 @@ Quantize reported 2061.29 MiB F16 → 651.29 MiB Q4_K_M. Download
 weights, merged checkpoints, and GGUF files stay out of git; hashes live in
 `evals/sft-v1/` and the frozen-eval metric files.
 
-## Corrected pair-grouped SFT run (2026-09-14)
+## Corrected pair-grouped SFT run (2026-09-14, SUPERSEDED)
 
-This is the rerun on the pair-grouped manifests at commit
-`f9b0ca6d0720c8dfd90a9ffd8907c729a68bc38e`. It is a fresh run, not a resume.
-Provenance lives in `evals/sft-v2/` (`run.json`, `training_record.json`,
-`selection.json`, `resolved_config.yaml`).
+This rerun trained on the first pair-grouped manifests, whose largest-first
+allocator filled train/val/test with 4/3/2 distinct pairs (see
+`docs/SPLITS.md`). The model trained on 4 distinct addresses and cannot
+generalize; its validation tie (all checkpoints abstain, repair F1 0.0)
+already showed this. Do not evaluate or report this artifact. It stays in
+`evals/sft-v2/` and `models/sft-Q4_K_M-pair-grouped-v2.gguf` for the record
+only.
 
-| Item | Value |
-|---|---|
-| Resolved config | `/content/train_pair_grouped_t4.yaml`, derived from `configs/train_t4_run.yaml` with the Drive prefix `local-slm-de-address-repair-pair-grouped-v2` (fp16, `val_samples` 100, `val_gen_max_tokens` 256) |
-| GPU | Tesla T4, capability 7.5, torch 2.14.0+cu130 |
-| Train | 3 epochs, ~939 steps, 4339.0 s; val scoring 1933.3 s |
-| Winner | `checkpoint-200`, selection score 0.6667 (three-way tie with 800 and 939; earliest wins the tie-break) |
-| Adapter SHA-256 | `beacfbfdcfc6cdbeca1576e8c07c0e6c1684dd72eb9fb968b888cc929a99d25b` (= hash of the downloaded `checkpoint-200/adapter_model.safetensors`) |
-| Manifest records | train `a2f810d0…`, val `9b64d693…` (match local `data/manifests/`); test `007073c5…` still unread for frozen eval |
-| Local GGUF | `models/sft-Q4_K_M-pair-grouped-v2.gguf` (gitignored), 688,065,792 bytes, SHA-256 `3189aeac315a168b3811d88f7587cabf3adb4e9a9e1d7dc97a70619ba8dd648d` — distinct from the v1 `c03e5b9c…` |
-| Drive root | `/content/drive/MyDrive/local-slm-de-address-repair-pair-grouped-v2` (`checkpoints/`, `merged-sft/`, `sft-f16.gguf`, `sft-Q4_K_M.gguf`) |
-| Notebook | `MiniCPM5_1B_address_repair_SFT_pair_grouped_v2.ipynb` |
+Provenance of the retired run (kept, not valid): commit
+`f9b0ca6d0720c8dfd90a9ffd8907c729a68bc38e`, fresh run, winner
+`checkpoint-200`, selection score 0.6667 (three-way tie with 800 and 939),
+4339.0 s train plus 1933.3 s val scoring on a Tesla T4 (fp16), adapter
+`beacfbfd…99d25b`, manifests train `a2f810d0…` / val `9b64d693…`, local
+GGUF `models/sft-Q4_K_M-pair-grouped-v2.gguf` (688,065,792 bytes,
+`3189aeac…`), Drive root
+`/content/drive/MyDrive/local-slm-de-address-repair-pair-grouped-v2`.
 
-Only the Q4_K_M hash is recorded locally; the F16 hash was not downloaded.
-The old `models/sft-Q4_K_M.gguf` is unchanged.
+## Re-split with seeded shuffle (2026-09-14)
+
+Current manifests use the seeded-shuffle allocator (`split_seed` 7):
+
+| Split | Rows | Distinct pairs | Manifest records SHA-256 |
+|---|---|---|---|
+| train | 5,000 | 956 | `bde07df721c9d8460417ab0191a7c244fb1649a0f2f797af0bbe3c63b134bc90` |
+| val | 1,000 | 189 | `b87ba19524901b1db4696a1d95a3f727f4bed0d0b5f06972a33231b70d3daf16` |
+| test | 2,000 | 367 | `a6705579e5c1a0cedc0cde34267d122d1eb475c53659073626719ad31b09c0b1` |
+
+No fingerprint crosses splits; smoke 100 is in train and outside test; all
+six defect types occur in every split. Rules floor on the new test manifest:
+precision 0.9927, recall 0.1827, F1 0.3087, damage 0.0
+(`evals/frozen-test/rules/`).
+
+The v3 retrain needs a fresh Drive root (the v2 folder holds the retired
+run), the new commit pin, and `--with sentencepiece` on the GGUF export
+line. After downloading the v3 GGUF and checkpoints, run the frozen
+rules/base/SFT evaluation on the test manifest above.
 
 ## Still open
 
 `make_report.py` is still a placeholder. Do not treat a printed placeholder
-as an experiment result. The corrected artifact above is installed, but the
-frozen rules/base/SFT evaluation on the pair-grouped test manifest has not
-run yet. Do not call any scores clean held-out generalization until then.
+as an experiment result. The v3 model is not trained yet; the frozen
+base/SFT evaluation on the pair-grouped test manifest above has not run.
+Do not call any scores clean held-out generalization until then.
 
 ## Pin record
 

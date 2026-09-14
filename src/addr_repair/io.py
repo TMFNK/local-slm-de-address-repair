@@ -3,6 +3,7 @@
 import csv
 import hashlib
 import json
+import random
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -34,13 +35,82 @@ def pair_fingerprint(record: dict) -> str:
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
+def split_diversity(
+    splits: dict[str, list[str]], fingerprints: dict[str, str]
+) -> dict[str, int]:
+    """Return the distinct content count per split for a fingerprint lookup."""
+    return {
+        split: len({fingerprints[entity_id] for entity_id in entity_ids})
+        for split, entity_ids in splits.items()
+    }
+
+
+def assert_split_diversity(
+    splits: dict[str, list[str]],
+    fingerprints: dict[str, str],
+    minimum_fraction: float = 0.10,
+) -> None:
+    """Refuse splits where a split repeats a few contents many times.
+
+    A seeded shuffle almost always deals a varied hand, but a giant group can
+    still land so that one split holds only a handful of distinct pairs. That
+    would make training and evaluation vacuous, so fail loudly with the seed
+    to change instead of shipping the manifests.
+    """
+    distinct = split_diversity(splits, fingerprints)
+    for split, entity_ids in splits.items():
+        if entity_ids and distinct[split] < minimum_fraction * len(entity_ids):
+            raise ValueError(
+                f"{split} holds only {distinct[split]} distinct pairs for "
+                f"{len(entity_ids)} rows; change split_seed and regenerate"
+            )
+
+
+def _exact_subset(
+    available: list[tuple[str, list[str]]], target: int, split_name: str
+) -> set[int]:
+    """Return group indexes whose sizes sum to exactly target.
+
+    Reachable totals are tracked as a bit mask so the search stays fast even
+    with tens of thousands of groups. Groups larger than the target can never
+    fit and are skipped. Raises instead of splitting a group.
+    """
+    mask_limit = (1 << (target + 1)) - 1
+    reachable = 1
+    masks = [reachable]
+    for _, ids in available:
+        size = len(ids)
+        if size <= target:
+            reachable |= (reachable << size) & mask_limit
+        masks.append(reachable)
+        if (reachable >> target) & 1:
+            break
+    if not (reachable >> target) & 1:
+        raise ValueError(
+            f"cannot allocate {target} records to {split_name} without splitting "
+            "a duplicate-content group"
+        )
+    chosen: set[int] = set()
+    total = target
+    for index in range(len(masks) - 1, 0, -1):
+        if total == 0:
+            break
+        if (masks[index - 1] >> total) & 1:
+            continue
+        chosen.add(index - 1)
+        total -= len(available[index - 1][1])
+    return chosen
+
+
 def pair_group_split(
-    records: list[dict], train: int, val: int, test: int
+    records: list[dict], train: int, val: int, test: int, seed: int = 7
 ) -> dict[str, list[str]]:
     """Return deterministic splits without separating duplicate content groups.
 
-    Groups are ordered by fingerprint. Each group is assigned wholly to one
-    split, and only complete groups that fit the requested row count are used.
+    Groups are dealt in seeded-shuffle order, so every split spans many
+    different contents instead of the most-duplicated head of the data. Each
+    group is assigned wholly to one split with exact row counts. The same
+    seed always gives the same splits.
     """
     targets = {"train": train, "val": val, "test": test}
     if any(value < 0 for value in targets.values()):
@@ -52,33 +122,14 @@ def pair_group_split(
     for record in records:
         groups.setdefault(pair_fingerprint(record), []).append(record["id"])
 
+    available = list(groups.items())
+    random.Random(seed).shuffle(available)
+
     result: dict[str, list[str]] = {name: [] for name in targets}
-    available = sorted(groups.items(), key=lambda item: (-len(item[1]), item[0]))
     for split_name, target in targets.items():
         if target == 0:
             continue
-        previous = [-1] * (target + 1)
-        previous[0] = -2
-        for index, (_, ids) in enumerate(available):
-            size = len(ids)
-            if size > target:
-                continue
-            for total in range(target, size - 1, -1):
-                if previous[total] == -1 and previous[total - size] != -1:
-                    previous[total] = index
-            if previous[target] != -1:
-                break
-        if previous[target] == -1:
-            raise ValueError(
-                f"cannot allocate {target} records to {split_name} without splitting "
-                "a duplicate-content group"
-            )
-        chosen: set[int] = set()
-        total = target
-        while total:
-            index = previous[total]
-            chosen.add(index)
-            total -= len(available[index][1])
+        chosen = _exact_subset(available, target, split_name)
         for index, (_, ids) in enumerate(available):
             if index in chosen:
                 result[split_name].extend(ids)

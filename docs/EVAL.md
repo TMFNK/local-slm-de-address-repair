@@ -23,6 +23,10 @@ Same 2,000 frozen test records for rules floor, base MiniCPM5, and SFT MiniCPM5.
 
 Exact-value and normalized-value scores stay separate when they disagree. After reading the frozen result: no prompt, normalizer, model, or test-data changes.
 
+Rows repeat boilerplate contents, so the independent units are distinct
+pairs, which never cross splits. Any uncertainty analysis (for example a
+paired bootstrap) must resample distinct pairs, not rows.
+
 The scorer also reports per-field counts for correct repairs, wrong repairs,
 missed repairs, correct abstentions, and clean-field damage. Review precision
 means that the reviewed input field had no usable value in the dirty record;

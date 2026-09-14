@@ -5,7 +5,13 @@ import pytest
 
 sys.path.insert(0, "src")
 
-from addr_repair.io import load_paired_records, pair_group_split, records_hash
+from addr_repair.io import (
+    assert_split_diversity,
+    load_paired_records,
+    pair_fingerprint,
+    pair_group_split,
+    records_hash,
+)
 
 FIELDS = ["name", "road", "house_number", "postcode", "locality", "country_code"]
 
@@ -68,6 +74,66 @@ def test_pair_group_split_rejects_unfillable_group_size():
 
     with pytest.raises(ValueError, match="without splitting"):
         pair_group_split(records, 1, 1, 0)
+
+
+def test_pair_group_split_is_deterministic_for_a_seed():
+    def pair(entity_id, dirty_road, gold_road):
+        return {
+            "id": entity_id,
+            "dirty": {**_row(entity_id, dirty_road), "id": None},
+            "gold": {**_row(entity_id, gold_road), "id": None},
+        }
+
+    records = [pair(f"e{i}", f"Straße {i}", f"Strasse {i}") for i in range(20)]
+    first = pair_group_split(records, 10, 5, 5, seed=7)
+    second = pair_group_split(records, 10, 5, 5, seed=7)
+
+    assert first == second
+
+
+def test_pair_group_split_spreads_duplicate_head_across_splits():
+    def pair(entity_id, dirty_road, gold_road):
+        return {
+            "id": entity_id,
+            "dirty": {**_row(entity_id, dirty_road), "id": None},
+            "gold": {**_row(entity_id, gold_road), "id": None},
+        }
+
+    head = [pair("dup0", "Musterstr.", "Musterstraße")]
+    tail = [pair(f"u{i}", f"Straße {i}", f"Strasse {i}") for i in range(30)]
+    records = head + tail
+
+    result = pair_group_split(records, 10, 5, 5, seed=7)
+    by_id = {record["id"]: record for record in records}
+    distinct_per_split = {
+        split: {pair_fingerprint(by_id[entity_id]) for entity_id in entity_ids}
+        for split, entity_ids in result.items()
+    }
+
+    assert {len(ids) for ids in result.values()} == {5, 10}
+    train_fps, val_fps, test_fps = (
+        distinct_per_split["train"],
+        distinct_per_split["val"],
+        distinct_per_split["test"],
+    )
+    assert not (train_fps & val_fps)
+    assert not (train_fps & test_fps)
+    assert not (val_fps & test_fps)
+    assert_split_diversity(
+        result, {record["id"]: pair_fingerprint(record) for record in records}
+    )
+
+
+def test_assert_split_diversity_refuses_repeated_contents():
+    splits = {"train": [f"e{i}" for i in range(12)]}
+    fingerprints = {f"e{i}": "same" for i in range(12)}
+
+    with pytest.raises(ValueError, match="change split_seed"):
+        assert_split_diversity(splits, fingerprints)
+
+    healthy = {"train": ["a", "b", "c", "d"]}
+    healthy_fps = {"a": "w", "b": "x", "c": "y", "d": "z"}
+    assert_split_diversity(healthy, healthy_fps)
 
 
 def test_load_paired_records_preserves_dirty_and_gold(tmp_path):

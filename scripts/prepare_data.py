@@ -16,7 +16,9 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from addr_repair.io import (
+    assert_split_diversity,
     load_paired_records,
+    pair_fingerprint,
     pair_group_split,
     records_hash,
     sha256_file,
@@ -70,15 +72,20 @@ def main() -> None:
 
     records = load_paired_records(dirty_path, clean_path, config.get("id_field", "id"))
     split_config = config["splits"]
+    split_seed = int(split_config.get("split_seed", 7))
     splits = pair_group_split(
         records,
         split_config["train_entities"],
         split_config["val_entities"],
         split_config["test_entities"],
+        seed=split_seed,
     )
     smoke_split = config.get("smoke_split", "train")
     if smoke_split not in ("train", "val"):
         raise SystemExit("smoke_split must be train or val; test is reserved for evaluation")
+    assert_split_diversity(
+        splits, {record["id"]: pair_fingerprint(record) for record in records}
+    )
     by_id = {record["id"]: record for record in records}
     if len(by_id) != len(records):
         raise SystemExit("Input contains duplicate entity IDs")
@@ -103,6 +110,7 @@ def main() -> None:
         "zenodo_url": config["zenodo_url"],
         "dataset_date": config["dataset_date"],
         "license": config["license"],
+        "split_seed": split_seed,
         "generated_at": generated_at,
     }
     for split_name, ids in splits.items():
