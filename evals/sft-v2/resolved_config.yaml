@@ -1,0 +1,78 @@
+data:
+  archive_file: AddressTable.zip
+  archive_sha256: 28ace972f27fd0e7cc3b62cea547e439c3e82dd77288872b3b357084d432dd1b
+  clean_file: clean.csv
+  dataset_date: '2026-06-26'
+  dirty_file: dirty.csv
+  extract_command: unzip -o data/raw/AddressTable.zip 'AddressTable/de_slice/named/*'
+    -d data/raw/_addr_tmp && cp data/raw/_addr_tmp/AddressTable/de_slice/named/slice_de_dirty.csv
+    data/raw/dirty.csv && cp data/raw/_addr_tmp/AddressTable/de_slice/named/slice_de_clean.csv
+    data/raw/clean.csv
+  id_field: id
+  license: ODbL-1.0
+  manifests_dir: data/manifests/
+  smoke_fixture: fixtures/smoke_100/
+  smoke_split: train
+  source_repo: https://github.com/D2IP-TUB/Clean-Me-If-You-Can
+  splits:
+    test_entities: 2000
+    train_entities: 5000
+    val_entities: 1000
+  zenodo_url: https://zenodo.org/records/20841898
+lora:
+  assistant_only_loss: true
+  lora_alpha: 32
+  lora_dropout: 0.05
+  r: 16
+  seed: 7
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+model:
+  chat_template_mode: no-think
+  decode:
+    max_tokens: 512
+    seed: 7
+    temperature: 0.0
+    top_p: 1.0
+  gguf_file: MiniCPM5-1B-Q4_K_M.gguf
+  gguf_repo: openbmb/MiniCPM5-1B-GGUF
+  gguf_rev: 3d55fac80935ae6456986ad2384b5cbcc4d6c948
+  llama_cpp_rev: b31b71f3a076bfc4278daad442203a9c51c6e676
+  local_gguf: models/MiniCPM5-1B-Q4_K_M.gguf
+  model_id: openbmb/MiniCPM5-1B
+  model_rev: 87179e5c1f455ef22e6223592d2d61351b525bfc
+  n_ctx: 2048
+  prompt_rev: v2
+  quant: Q4_K_M
+  server_url: http://127.0.0.1:8080
+train:
+  base_config: configs/model.yaml
+  bf16: false
+  data_config: configs/data.yaml
+  eval_steps: 200
+  eval_strategy: steps
+  fp16: true
+  gradient_accumulation_steps: 8
+  learning_rate: 0.0002
+  logging_dir: /content/drive/MyDrive/local-slm-de-address-repair-pair-grouped-v2/logs
+  logging_steps: 50
+  lora_config: configs/lora.yaml
+  lr_scheduler_type: cosine
+  max_seq_length: 2048
+  num_train_epochs: 3
+  output_dir: /content/drive/MyDrive/local-slm-de-address-repair-pair-grouped-v2/checkpoints
+  per_device_train_batch_size: 2
+  report_to: none
+  save_steps: 200
+  save_total_limit: 3
+  seed: 7
+  trust_remote_code: false
+  val_gen_max_tokens: 256
+  val_samples: 100
+  warmup_steps: 30

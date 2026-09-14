@@ -1,0 +1,82 @@
+{
+  "adapter_sha256": "beacfbfdcfc6cdbeca1576e8c07c0e6c1684dd72eb9fb968b888cc929a99d25b",
+  "config": "/content/train_pair_grouped_t4.yaml (derived from configs/train_t4_run.yaml with Drive prefix local-slm-de-address-repair-pair-grouped-v2)",
+  "data": {
+    "archive_skipped": true,
+    "clean_sha256": "78c852e3a5680a7460732b67ab87d82484a718297190fa8852af73a80817a192",
+    "dirty_sha256": "2ef8ab1424c8c357af1aeaecef12b376cb7f20616437035f2753d0b2f2ac86ef",
+    "manifest_records_sha256": {
+      "test": "007073c5aa67b7b2f1f97bb7bdaa51518be20c3d8c7d9c3fb1ddda01b48e6bcf",
+      "train": "a2f810d056f9c2cfa7968a5c2e2e3654c2e0fbfbc0a41838c831266788042f8c",
+      "val": "9b64d6938c52ae817127ded451f045d725bebc4a12ab3a7d0506c0a6349d8946"
+    },
+    "paired_records": 374533,
+    "prepare_data": "scripts/prepare_data.py --config configs/data.yaml --skip-archive --force",
+    "smoke": "100 records from train, 0 in test (pair-grouped check passed)",
+    "source": "Drive copies of de_slice/named CSVs",
+    "split_method": "pair-grouped (canonical dirty-plus-gold groups, one split per group)",
+    "splits": {
+      "test": 2000,
+      "train": 5000,
+      "val": 1000
+    }
+  },
+  "export": {
+    "base_id": "openbmb/MiniCPM5-1B",
+    "base_rev": "87179e5c1f455ef22e6223592d2d61351b525bfc",
+    "gguf_f16": "/content/drive/MyDrive/local-slm-de-address-repair-pair-grouped-v2/sft-f16.gguf",
+    "gguf_q4": "/content/drive/MyDrive/local-slm-de-address-repair-pair-grouped-v2/sft-Q4_K_M.gguf",
+    "gguf_q4_bytes": 688065792,
+    "gguf_q4_sha256": "3189aeac315a168b3811d88f7587cabf3adb4e9a9e1d7dc97a70619ba8dd648d",
+    "llama_cpp_rev": "b31b71f3a076bfc4278daad442203a9c51c6e676",
+    "local_gguf": "models/sft-Q4_K_M-pair-grouped-v2.gguf",
+    "merged_dir": "/content/drive/MyDrive/local-slm-de-address-repair-pair-grouped-v2/merged-sft",
+    "quant": "Q4_K_M",
+    "winner_checkpoint": "checkpoint-200"
+  },
+  "gpu": {
+    "capability": "7.5",
+    "cuda_available": true,
+    "device_name": "Tesla T4",
+    "torch_version": "2.14.0+cu130"
+  },
+  "local_provenance": {
+    "resolved_config": "evals/sft-v2/resolved_config.yaml",
+    "selection": "evals/sft-v2/selection.json",
+    "source_drive_root": "/content/drive/MyDrive/local-slm-de-address-repair-pair-grouped-v2",
+    "source_downloads": "~/Downloads/checkpoints/ + ~/Downloads/sft-Q4_K_M.gguf (2026-09-14)",
+    "training_record": "evals/sft-v2/training_record.json"
+  },
+  "missing": [
+    "sft-f16.gguf hash was not downloaded; only the Q4_K_M hash is recorded locally",
+    "per-checkpoint selection_scores/ JSONs stay in ~/Downloads; their metrics are summarized in training_record.json"
+  ],
+  "mode": "fresh run (guard refused existing checkpoints; no --resume, no --select-only)",
+  "notebook": "MiniCPM5_1B_address_repair_SFT_pair_grouped_v2.ipynb",
+  "precision": {
+    "bf16": false,
+    "fp16": true
+  },
+  "repo_commit": "f9b0ca6d0720c8dfd90a9ffd8907c729a68bc38e",
+  "selection": {
+    "n": 100,
+    "rule": "max mean(review_precision, 1-damage_rate, repair_f1); ties by contract_validity then fewest inventions",
+    "score": 0.6667,
+    "tie_note": "checkpoint-200, 800, 939 all scored 0.6667; winner is earliest by tie-break",
+    "val_gen_max_tokens": 256,
+    "val_samples": 100,
+    "winner": "checkpoint-200"
+  },
+  "train": {
+    "epoch": 3,
+    "train_runtime_seconds": 4339.0,
+    "val_scoring_seconds": 1933.3
+  },
+  "versions": {
+    "peft": "0.20.0",
+    "python": "3.12.3",
+    "torch": "2.14.0+cu130",
+    "transformers": "5.16.1",
+    "trl": "1.12.0"
+  }
+}

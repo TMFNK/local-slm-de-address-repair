@@ -59,13 +59,22 @@ uv run python scripts/evaluate_local.py --system base --manifest fixtures/smoke_
 
 Each run checks the manifest hash before scoring and writes ignored
 `audit.jsonl` plus committed `metrics.json` and `freeze.json` (hashes and
-aggregate numbers only, no raw records). SFT needs the local GGUF and the
+aggregate numbers only, no raw records). SFT v1 needs the local GGUF and the
 adapter hash from `evals/sft-v1/selection.json`:
 
 ```bash
 uv run python scripts/evaluate_local.py --system sft \
   --gguf models/sft-Q4_K_M.gguf \
   --model-rev 6aeb7a169c76bbc18d351be78bfbdeb99e7cde557acbd17b140d26092c9c8ba9
+```
+
+The corrected pair-grouped model uses the v2 artifact and its own adapter
+hash from `evals/sft-v2/selection.json`:
+
+```bash
+uv run python scripts/evaluate_local.py --system sft \
+  --gguf models/sft-Q4_K_M-pair-grouped-v2.gguf \
+  --model-rev beacfbfdcfc6cdbeca1576e8c07c0e6c1684dd72eb9fb968b888cc929a99d25b
 ```
 
 The GGUF is gitignored. Put `models/sft-Q4_K_M.gguf` next to the base GGUF
@@ -154,12 +163,34 @@ Quantize reported 2061.29 MiB F16 → 651.29 MiB Q4_K_M. Download
 weights, merged checkpoints, and GGUF files stay out of git; hashes live in
 `evals/sft-v1/` and the frozen-eval metric files.
 
+## Corrected pair-grouped SFT run (2026-09-14)
+
+This is the rerun on the pair-grouped manifests at commit
+`f9b0ca6d0720c8dfd90a9ffd8907c729a68bc38e`. It is a fresh run, not a resume.
+Provenance lives in `evals/sft-v2/` (`run.json`, `training_record.json`,
+`selection.json`, `resolved_config.yaml`).
+
+| Item | Value |
+|---|---|
+| Resolved config | `/content/train_pair_grouped_t4.yaml`, derived from `configs/train_t4_run.yaml` with the Drive prefix `local-slm-de-address-repair-pair-grouped-v2` (fp16, `val_samples` 100, `val_gen_max_tokens` 256) |
+| GPU | Tesla T4, capability 7.5, torch 2.14.0+cu130 |
+| Train | 3 epochs, ~939 steps, 4339.0 s; val scoring 1933.3 s |
+| Winner | `checkpoint-200`, selection score 0.6667 (three-way tie with 800 and 939; earliest wins the tie-break) |
+| Adapter SHA-256 | `beacfbfdcfc6cdbeca1576e8c07c0e6c1684dd72eb9fb968b888cc929a99d25b` (= hash of the downloaded `checkpoint-200/adapter_model.safetensors`) |
+| Manifest records | train `a2f810d0…`, val `9b64d693…` (match local `data/manifests/`); test `007073c5…` still unread for frozen eval |
+| Local GGUF | `models/sft-Q4_K_M-pair-grouped-v2.gguf` (gitignored), 688,065,792 bytes, SHA-256 `3189aeac315a168b3811d88f7587cabf3adb4e9a9e1d7dc97a70619ba8dd648d` — distinct from the v1 `c03e5b9c…` |
+| Drive root | `/content/drive/MyDrive/local-slm-de-address-repair-pair-grouped-v2` (`checkpoints/`, `merged-sft/`, `sft-f16.gguf`, `sft-Q4_K_M.gguf`) |
+| Notebook | `MiniCPM5_1B_address_repair_SFT_pair_grouped_v2.ipynb` |
+
+Only the Q4_K_M hash is recorded locally; the F16 hash was not downloaded.
+The old `models/sft-Q4_K_M.gguf` is unchanged.
+
 ## Still open
 
 `make_report.py` is still a placeholder. Do not treat a printed placeholder
-as an experiment result. Repeat training, selection, export, and frozen
-evaluation on the pair-grouped split before calling the scores clean
-held-out generalization.
+as an experiment result. The corrected artifact above is installed, but the
+frozen rules/base/SFT evaluation on the pair-grouped test manifest has not
+run yet. Do not call any scores clean held-out generalization until then.
 
 ## Pin record
 
