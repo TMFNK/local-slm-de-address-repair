@@ -197,10 +197,7 @@ six defect types occur in every split. Rules floor on the new test manifest:
 precision 0.9927, recall 0.1827, F1 0.3087, damage 0.0
 (`evals/frozen-test/rules/`).
 
-The v3 retrain needs a fresh Drive root (the v2 folder holds the retired
-run), the new commit pin, and `--with sentencepiece` on the GGUF export
-line. After downloading the v3 GGUF and checkpoints, run the frozen
-rules/base/SFT evaluation on the test manifest above.
+The v3 run notebook is prepared in the vault at `20_Projects/34_MiniCPM5-GRPO-Struct/docs/collab notebook/MiniCPM5_1B_address_repair_SFT_pair_grouped_v3.ipynb`: upload to Colab, select a T4 GPU, run top to bottom. It uses a fresh Drive root, pins commit `3464395`, verifies the seed-7 manifest hashes before training, and exports with `--with sentencepiece`. After downloading the v3 GGUF and checkpoints, run the frozen rules/base/SFT evaluation on the test manifest above.
 
 ## Still open
 
