@@ -77,8 +77,10 @@ uv run python scripts/evaluate_local.py --system sft \
   --model-rev beacfbfdcfc6cdbeca1576e8c07c0e6c1684dd72eb9fb968b888cc929a99d25b
 ```
 
-The definitive clean-gold v3 run uses the provenance in `evals/sft-v3/`,
-the v3 manifests in `data/manifests/`, and this versioned GGUF:
+The definitive clean-gold v3 run uses Drive root
+`/content/drive/MyDrive/local-slm-de-address-repair-clean-gold-v3/`.
+Its downloaded provenance is in `evals/sft-v3/`, the v3 manifests are in
+`data/manifests/`, and the versioned GGUF is:
 
 ```bash
 uv run python scripts/evaluate_local.py --system rules \
@@ -98,6 +100,10 @@ The v3 SFT GGUF SHA-256 is
 The selected adapter is `checkpoint-800`, selected on validation only with
 score `0.7708`; its full adapter SHA-256 is
 `7103451b9cc916920c59e5d68e8c3ada852b294be5eab55a0d1a9abdc77ec712`.
+The dedicated rerun result boundary is
+`evals/frozen-test-v3/{rules,base,sft}/`; each directory contains
+`metrics.json` and `runtime.json`, and the committed exhibit artifact is
+`docs/exhibits/2026-09-15-v3-frozen-exhibits.md`.
 
 The GGUF is gitignored. Put `models/sft-Q4_K_M.gguf` next to the base GGUF
 (688,065,792 bytes, SHA-256
@@ -248,6 +254,12 @@ Frozen test results:
 - v3 SFT: precision `0.6984`, recall `0.1991`, F1 `0.3099`, damage
   `0.0237`, one empty-field fill and `88` unsupported additions,
   schema/semantic/contract validity `0.999/0.9535/0.9535`.
+
+Runtime probes measured server launch to `/health`, then sampled resident
+memory for one second after load: base model load `1,561.8 ms`, peak RSS
+`810.6 MB`; v3 SFT model load `661.7 ms`, peak RSS `816.8 MB`. Rules have
+no model server and used `31.4 MB` evaluator RSS. These are startup-memory
+measurements; per-record latency remains the production-path runtime metric.
 
 The two report exhibits are a name over-edit
 (`Helmholtz-Gymnasium` → `Helmholtz-Gymnasium Karlsruhe`) and a correct

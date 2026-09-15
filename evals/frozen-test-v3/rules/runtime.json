@@ -1,0 +1,8 @@
+{
+  "manifest_records_sha256": "160eec15661de36d45265e03a053244311187d077b7c00e4d571d2294250350c",
+  "measurement": "evaluate_local process RSS; rules have no model server",
+  "model_load_ms": 0.0,
+  "peak_rss_mb": 31.4,
+  "runtime_probe_commit": "bd50ecc3dd6cf54fbd06e903d2a74440f79091e3",
+  "system": "rules"
+}

@@ -128,6 +128,12 @@ that reading: when the model asks for a human, it is almost always
 right to ask. Review record coverage is 0.809 for v3 SFT, compared with
 0.810 for the rules floor and 0.754 for the base.
 
+The runtime probe measured model load from server launch to `/health` and
+sampled resident memory for one second after load: base 1,561.8 ms and
+810.6 MB; v3 SFT 661.7 ms and 816.8 MB. Rules have no model server
+(31.4 MB evaluator RSS). These are startup-memory measurements, separate
+from the per-record latency figures.
+
 Two v3 records show both sides. The model over-edited the clean name
 `Helmholtz-Gymnasium` to `Helmholtz-Gymnasium Karlsruhe`, copying the
 locality into the name. On another record it held back correctly:
@@ -136,7 +142,7 @@ postcode empty in the input, left empty in the output and flagged in
 `Wackerbarthstraße`.
 
 Per-record audit logs stay local (gitignored). The committed result
-files are `evals/frozen-test/{rules,base,sft}/metrics.json`; the shared
+files are `evals/frozen-test-v3/{rules,base,sft}/metrics.json`; the shared
 `freeze.json` reflects the last run, so compare the per-system files.
 Training provenance is in `evals/sft-v3/`; the v3 GGUF is
 `models/sft-Q4_K_M-clean-gold-v3.gguf`.
@@ -185,6 +191,7 @@ tests/                    unit tests for rules, validation, and scoring
 - [`docs/EVAL.md`](docs/EVAL.md): metric and validation definitions
 - [`docs/SPLITS.md`](docs/SPLITS.md): entity-disjoint data design
 - [`docs/REPRO.md`](docs/REPRO.md): reproduction workflow and pinned inputs
+- [`docs/exhibits/2026-09-15-v3-frozen-exhibits.md`](docs/exhibits/2026-09-15-v3-frozen-exhibits.md): committed v3 failure exhibits
 - [`paper/outline.md`](paper/outline.md): technical report structure
 
 ## License

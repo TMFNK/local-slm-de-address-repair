@@ -1,0 +1,8 @@
+{
+  "manifest_records_sha256": "160eec15661de36d45265e03a053244311187d077b7c00e4d571d2294250350c",
+  "measurement": "llama-server startup to /health; RSS sampled every 100 ms through one-second post-load window",
+  "model_load_ms": 1561.8,
+  "peak_rss_mb": 810.6,
+  "runtime_probe_commit": "bd50ecc3dd6cf54fbd06e903d2a74440f79091e3",
+  "system": "base"
+}

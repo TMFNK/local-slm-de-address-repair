@@ -280,11 +280,14 @@ abstentions lower the reported recall. Read recall as fixed without
 guessing, not gaps closed.
 
 Cost on an 8~GB Mac (Metal, shared local runtime): rules take
-seconds; base took 79.5 minutes for 2,000 records (p50 2237.1~ms,
-p95 3969.4~ms); v3 SFT took 50.8 minutes (p50 1443.7~ms, p95
-2293.3~ms).
-Model-load time and peak memory were not measured; only per-record
-latency is reported.
+seconds; base took about 79.5 minutes for 2,000 records (p50
+2237.1~ms, p95 3969.4~ms); v3 SFT took about 50.8 minutes (p50
+1443.7~ms, p95 2293.3~ms). A startup probe measured model load from
+server launch to \texttt{/health}: 1561.8~ms for base and 661.7~ms for
+v3 SFT. Peak resident memory during the one-second post-load probe was
+810.6~MB and 816.8~MB respectively; the rules evaluator used 31.4~MB.
+These are startup-memory measurements, separate from the per-record
+latency figures.
 
 \section{Failure exhibits}
 \label{sec:exhibits}
@@ -320,8 +323,8 @@ name additions; any deployment would
 need a name-field gate or mandatory review for name edits. Correct
 abstentions depress recall by construction, so the headline recall
 understates how often the model does the right thing and overstates
-nothing. Only per-record latency was measured, on one 8~GB machine;
-load time and peak memory are open. The frozen comparison is one
+nothing. Runtime was measured on one 8~GB machine; the memory figures
+are startup probes and do not claim a full-run process maximum. The frozen comparison is one
 deterministic run per system. The validation-subsample scores that
 picked the checkpoint used the HF generate path, while the frozen
 scores use the GGUF server path; both are pinned and reported, and
@@ -332,7 +335,7 @@ change followed the frozen result.
 \label{sec:repro}
 
 The repository is \texttt{TMFNK/local-slm-de-address-repair}
-\cite{repo} at evaluation commit \texttt{65c192c}; the v3 Colab
+\cite{repo} at evaluation commit \texttt{bd50ecc}; the v3 Colab
 training run used commit \texttt{3464395}. Setup uses Python 3.12 with a \texttt{uv}
 lockfile. Data preparation, smoke baseline, Colab training, frozen
 evaluation, and the report entry point each have one command

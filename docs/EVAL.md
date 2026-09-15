@@ -8,8 +8,10 @@ Same 2,000 frozen test records for rules floor, base MiniCPM5, and SFT MiniCPM5.
 - v3 SFT: damage `0.0237`, one empty-field fill, 88 unsupported additions,
   schema validity `0.999`, semantic/contract validity `0.9535/0.9535`,
   review precision `0.9992`, and review record coverage `0.809`
+- Runtime probes: base load `1,561.8 ms` / peak RSS `810.6 MB`; v3 SFT
+  load `661.7 ms` / peak RSS `816.8 MB`; rules evaluator RSS `31.4 MB`
 - Per-system source files:
-  `evals/frozen-test/{rules,base,sft}/metrics.json`
+  `evals/frozen-test-v3/{rules,base,sft}/metrics.json`
 
 - Repair precision / recall / F1 (field level, vs paired gold)
 - Damage rate (clean fields changed wrongly / all clean fields)
