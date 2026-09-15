@@ -1,0 +1,421 @@
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{float}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{setspace}
+\usepackage[font=small,labelfont=bf,skip=8pt]{caption}
+\usepackage{hyperref}
+\setlength{\emergencystretch}{3em}
+% Allow DOI/GitHub URLs to break cleanly in narrow columns.
+\makeatletter
+\g@addto@macro{\UrlBreaks}{\do\/\do-\do.\do\_\do:\do0\do1\do2\do3\do4\do5\do6\do7\do8\do9}
+\makeatother
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=blue!60!black,
+  pdftitle={Local Address Repair with a LoRA-Tuned MiniCPM5-1B: Rules Floor, Base, and SFT on a Frozen German Test Set},
+  pdfauthor={Eduard Beloiu},
+  pdfsubject={Technical report on local SLM data repair with audit trail},
+  pdfkeywords={data cleaning, address normalization, small language models, LoRA, reproducibility, audit trail}
+}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  breakatwhitespace=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  frame=single,
+  aboveskip=1.4ex,
+  belowskip=1.4ex,
+  xleftmargin=0.4em,
+  framexleftmargin=0.4em,
+  literate={ß}{{\ss}}1 {ä}{{\"a}}1 {ö}{{\"o}}1 {ü}{{\"u}}1
+    {Ä}{{\"A}}1 {Ö}{{\"O}}1 {Ü}{{\"U}}1 {é}{{\'e}}1
+}
+\newcommand{\doiref}[1]{\href{https://doi.org/#1}{\texttt{#1}}}
+
+% Slightly more air between paragraphs, floats, and section heads.
+\setstretch{1.045}
+\setlength{\parskip}{0.35ex plus 0.15ex}
+\setlength{\floatsep}{11pt plus 2pt minus 2pt}
+\setlength{\textfloatsep}{12pt plus 2pt minus 2pt}
+\setlength{\intextsep}{10pt plus 2pt minus 2pt}
+\setlength{\abovedisplayskip}{8pt plus 2pt minus 2pt}
+\setlength{\belowdisplayskip}{8pt plus 2pt minus 2pt}
+\makeatletter
+\renewcommand\section{\@startsection{section}{1}{\z@}%
+  {-3.5ex \@plus -1ex \@minus -.2ex}%
+  {2.2ex \@plus .25ex}%
+  {\normalfont\Large\bfseries}}
+\renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
+  {-3.1ex\@plus -1ex \@minus -.2ex}%
+  {1.5ex \@plus .2ex}%
+  {\normalfont\large\bfseries}}
+\makeatother
+
+% Contribution list: a bit more room between bullets.
+\let\olditemize\itemize
+\renewcommand{\itemize}{%
+  \olditemize
+  \setlength{\itemsep}{0.5ex plus 0.15ex}%
+  \setlength{\parsep}{0.15ex}%
+}
+
+\title{Local Address Repair with a LoRA-Tuned MiniCPM5-1B:\\
+Rules Floor, Base, and SFT on a Frozen German Test Set}
+\author{Eduard Beloiu \\ \small MbitAI}
+\date{September 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Dirty address records break migration and operations work, and a
+repair that silently changes a correct field is worse than one that
+asks for review. This report fine-tunes \texttt{openbmb/MiniCPM5-1B}
+with LoRA supervised fine-tuning to repair messy German named-address
+records on a local machine, and compares three systems on the same
+2,000 clean-gold-grouped held-out records: a deterministic rules floor,
+the untuned base model, and the v3 tuned model. Every output must
+satisfy a fixed JSON contract with a field-level change list and a
+review route, and every record writes one append-only audit entry. The
+v3 model reaches repair precision 0.6984, recall 0.1991, and F1 0.3099,
+versus 0.1860 for the rules floor and 0.0192 for the base model. It
+makes one empty-field fill against 1,039 for the base model, while
+review precision is 0.9992. Two exhibits show both sides of that trade:
+a name-field over-edit and a correct refusal to invent a postcode.
+Training, export, and
+evaluation use pinned revisions, dataset hashes, and committed result
+artifacts. The work evaluates public address records, not private
+customer data.
+\end{abstract}
+
+\section{Introduction}
+
+Address data arrives messy: inconsistent spacing and casing, Unicode
+variants, punctuation, documented abbreviations such as
+\texttt{Musterstr.}, spelling defects, and values in the wrong fields.
+Deterministic normalization covers the mechanical cases. The open
+question is whether a small local model can cover the rest without
+inventing information that was never in the input.
+
+This report answers that question narrowly. The system reads one dirty
+German named-address record and returns a normalized record, a list of
+field-level changes, and the fields a human should review. It does not
+geocode, match entities, or fill in missing address data. A missing
+road, postcode, or house number must be flagged for review rather than
+guessed. That rule shapes the whole design: the scorer counts filling
+an empty field as invention even when the guess matches gold, and it
+counts a correct refusal as a recall miss. The final numbers must be
+read with that rule in mind (\S\ref{sec:eval}).
+
+This technical report makes three contributions:
+\begin{itemize}
+\item an output contract (JSON Schema plus semantic checks) with a
+per-record audit log and a review route, shared by all three systems;
+\item a LoRA fine-tune of MiniCPM5-1B on evidence-preserving targets
+with checkpoint selection on honesty metrics (review precision,
+damage, F1), never recall alone; and
+\item a frozen three-way evaluation on 2,000 held-out records with two
+failure exhibits that show where the tuned model over-edits and where
+it correctly refuses.
+\end{itemize}
+
+\section{Related work}
+\label{sec:related}
+
+The data comes from Clean Me If You Can, which supplies paired dirty
+and clean address tables with an error taxonomy, a published download,
+and ODbL terms \cite{cleanme, addressdoi}. We use only its German
+named-address slice. The project follows the same evidence standard as
+our earlier log-parsing work: pinned inputs, a deterministic floor, a
+per-decision audit trail, and failure exhibits in the report
+\cite{trail}.
+
+MiniCPM5-1B is a 1B-parameter model published by OpenBMB
+\cite{minicpm-card, minicpm-paper}. OpenBMB publishes a TRL plus PEFT
+recipe for its LoRA adapters with assistant-only loss
+\cite{minicpm-trl}, which this project follows. LoRA \cite{lora},
+TRL \cite{trl}, and PEFT \cite{peft} are standard tooling; what this
+report adds is the honesty-gated selection and the frozen comparison. Both base and tuned checkpoints
+run locally through the same \texttt{llama.cpp} build
+\cite{llamacpp} as quantized GGUF files, so no address data leaves the
+machine.
+
+\section{Task and output contract}
+\label{sec:contract}
+
+The input is one dirty record with six fields: \texttt{name},
+\texttt{road}, \texttt{house\_number}, \texttt{postcode},
+\texttt{locality}, and \texttt{country\_code}. The output must parse
+against a fixed JSON Schema:
+\begin{lstlisting}
+{"clean_record": {"name": "Example GmbH", "road": "Musterstraße",
+  "house_number": "12", "postcode": "80331",
+  "locality": "Muenchen", "country_code": "DE"},
+ "changes": [{"field": "road", "from": "Musterstr.",
+  "to": "Musterstraße"}],
+ "needs_review": []}
+\end{lstlisting}
+Semantic validation then checks that every change agrees with the
+dirty input and the returned record, that no field is both changed and
+reviewed, and that every changed field has an audit entry. The runtime
+writes one append-only JSONL audit record per input with the input
+fingerprint, model and prompt revision, parsed output, changed fields,
+schema and semantic results, \texttt{needs\_review}, latency, and the
+score when gold data is available.
+
+\section{Data}
+\label{sec:data}
+
+Address data come from the AddressTable release (Zenodo record
+20841898, version v1.0 dated 2026-06-26, DOI
+\doiref{10.5281/zenodo.20841898}, ODbL-1.0 \cite{addressdoi, odbl}).
+The full archive (\texttt{AddressTable.zip}, 7,263,043,993 bytes) was
+downloaded and checksum-verified; we use only the German named slice
+(374,533 aligned dirty/clean pairs). Entity identifiers were split
+before any training input was built: 5,000 training entities, 1,000
+validation entities, and 2,000 held-out test entities, with no entity
+or clean target crossing splits. The training set may use controlled
+corruptions generated from the clean training partition; the test set
+uses only the source dataset's original paired rows. Raw records are
+never committed; manifests record archive, per-file, and split hashes.
+
+\section{Method}
+\label{sec:method}
+
+All three systems share the contract from \S\ref{sec:contract}, the
+prompt (\texttt{v2}), the decoder settings (temperature 0.0,
+\texttt{top\_p} 1.0, seed 7, 512 max tokens), the \texttt{llama.cpp}
+revision, and the Q4\_K\_M quantization.
+
+\paragraph{Rules floor.} Deterministic normalization for whitespace,
+casing, Unicode, documented abbreviations, and format checks. It never
+touches a field it cannot justify, so its precision is high and its
+recall is low by construction.
+
+\paragraph{Base.} Untuned \texttt{openbmb/MiniCPM5-1B} (revision
+\texttt{87179e5}) with the production prompt, served as Q4\_K\_M GGUF
+through a local \texttt{llama-server} with reasoning disabled
+(\texttt{n\_ctx} 2048).
+
+\paragraph{SFT.} LoRA rank 16 (\texttt{alpha} 32, dropout 0.05) on the
+official target modules, assistant-only loss, 3 epochs over 5,000
+evidence-preserving targets (about 939 steps, learning rate
+\texttt{2e-4}, cosine schedule, batch 2 with 8 accumulation steps).
+The definitive run trained on a Colab T4 in fp16 for 4,574.6 seconds;
+validation scoring took 2,364.9 seconds. Checkpoints were selected on
+validation data only with an honesty score, the mean of review
+precision, 1-minus-damage, and F1. The winner,
+\texttt{checkpoint-800}, scored 0.7708 (review precision 1.0, damage
+0.0209, F1 0.3333 on a deterministic 100-record validation
+subsample). The adapter
+(\texttt{7103451b}\dots\texttt{d77ec712}) was merged into the base
+model and converted to Q4\_K\_M GGUF with pinned \texttt{llama.cpp}
+revision \texttt{b31b71f}. The training chat template differs from the
+inference template by design, following the official MiniCPM recipe;
+both are pinned and the difference is recorded, not unified.
+
+\section{Evaluation}
+\label{sec:eval}
+
+The scorer compares each predicted record against its paired gold
+record field by field, with exact match after Unicode normalization
+and stripping. A correct repair requires evidence: the dirty field
+must be non-empty, so filling an empty field is invention even when
+the guess matches gold, and it never counts as a true positive. A
+correct abstention (empty field kept empty and flagged) still counts
+as a recall miss. This is deliberate: the test set and scorer stay
+unchanged on abstention versus recall, and this section owns the
+tension instead. Each result is one deterministic run on the fixed
+2,000-record input, so variance estimates and significance tests do
+not apply.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{Frozen test results, $n=2{,}000$. Contract is schema AND
+semantics (usable-output rate). Latency is per-record model time.}
+\label{tab:main}
+\begin{tabular}{lccccccccc}
+\toprule
+System & Prec & Rec & F1 & Damage & Invent & Rev P & Schema & Contract & p50 \\
+\midrule
+Rules & 0.9369 & 0.1033 & 0.1860 & 0.0 & 0 & 1.0 & 1.0 & 1.0 & 0 ms \\
+Base & 0.0281 & 0.0146 & 0.0192 & 0.0235 & 1039 & 0.5445 & 0.7175 & 0.0 & 2237.1 ms \\
+SFT v3 & 0.6984 & 0.1991 & 0.3099 & 0.0237 & 1 & 0.9992 & 0.999 & 0.9535 & 1443.7 ms \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The v3 tuned model improves repair F1 over both the rules floor
+(0.3099 vs.\ 0.1860) and the base model (0.0192), with higher repair
+precision than the base (0.6984 vs.\ 0.0281). It makes one empty-field
+fill against 1,039 for the base, whose contract validity is 0.0. It
+also makes 88 unsupported additions, where a prediction extends a
+non-empty input value with extra tokens. Damage is 0.0237, slightly
+above rules (0.0) and base (0.0235). Review precision 0.9992 with
+record coverage 0.809 says the review route works: when the model asks
+for a human, it is almost always right to ask.
+
+By field, the v3 model is strongest where the evidence is mechanical:
+road (precision 0.9233, recall 0.6066) and house number (0.9322,
+0.1378), followed by locality (0.8700, 0.3841). The name field carries
+most of the damage (rate 0.0754, 94 damaged clean fields; precision
+0.3724, recall 0.1182). Postcode recall is 0.0066 and country code
+recall is 0.0, not because the model regularly invents them but
+because it abstains: country-code review has precision 1.0. Correct
+abstentions lower the reported recall. Read recall as fixed without
+guessing, not gaps closed.
+
+Cost on an 8~GB Mac (Metal, shared local runtime): rules take
+seconds; base took 79.5 minutes for 2,000 records (p50 2237.1~ms,
+p95 3969.4~ms); v3 SFT took 50.8 minutes (p50 1443.7~ms, p95
+2293.3~ms).
+Model-load time and peak memory were not measured; only per-record
+latency is reported.
+
+\section{Failure exhibits}
+\label{sec:exhibits}
+
+\paragraph{Exhibit 1: name damage.} The dirty and gold names are both
+\texttt{Helmholtz-Gymnasium}, with locality \texttt{Karlsruhe}. The
+v3 model returns \texttt{Helmholtz-Gymnasium Karlsruhe}, copying the
+locality into the name. Road \texttt{Kaiserallee}, house \texttt{6},
+postcode \texttt{76133}, and locality are preserved; only the missing
+\texttt{country\_code} is reviewed. The output passes schema and
+semantic validation, but the name change is an unsupported addition and
+a wrong repair. This is representative of the v3 name-field weakness:
+the name field has 0.0754 damage and 47 unsupported additions.
+
+\paragraph{Exhibit 2: correct refusal.} The dirty record reads
+\texttt{Schloss Wackerbarth}, road \texttt{Wackerbarthstr.}, house
+\texttt{1}, empty postcode, empty locality, and empty country code.
+The v3 model repairs the road to \texttt{Wackerbarthstra\ss{}e}, leaves
+the postcode empty, and flags the postcode and country code in
+\texttt{needs\_review}. The gold postcode (\texttt{01445}) and locality
+(\texttt{Radebeul}) were not visible at run time; guessing either would
+have been invention. The model fixes what the input supports and stops
+where the evidence stops. The scorer counts the kept-empty postcode as
+a recall miss by design.
+
+\section{Limitations}
+\label{sec:limits}
+
+This work evaluates public address records, not private customer
+data, and supports no production safety claim. The tuned model still
+damages clean name fields at a rate of 0.0754 and makes 47 unsupported
+name additions; any deployment would
+need a name-field gate or mandatory review for name edits. Correct
+abstentions depress recall by construction, so the headline recall
+understates how often the model does the right thing and overstates
+nothing. Only per-record latency was measured, on one 8~GB machine;
+load time and peak memory are open. The frozen comparison is one
+deterministic run per system. The validation-subsample scores that
+picked the checkpoint used the HF generate path, while the frozen
+scores use the GGUF server path; both are pinned and reported, and
+the frozen numbers govern. No prompt, normalizer, model, or test-data
+change followed the frozen result.
+
+\section{Reproduction}
+\label{sec:repro}
+
+The repository is \texttt{TMFNK/local-slm-de-address-repair}
+\cite{repo} at evaluation commit \texttt{65c192c}; the v3 Colab
+training run used commit \texttt{3464395}. Setup uses Python 3.12 with a \texttt{uv}
+lockfile. Data preparation, smoke baseline, Colab training, frozen
+evaluation, and the report entry point each have one command
+(\texttt{docs/REPRO.md}); \texttt{make\_report.py} remains a
+placeholder and is not treated as a result. Each frozen run checks the
+manifest hash before scoring and writes ignored per-record
+\texttt{audit.jsonl} plus committed per-system \texttt{metrics.json};
+the shared \texttt{freeze.json} reflects the last run, so comparisons
+must use the per-system files.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{Pinned revisions and hashes. Full values live in
+\texttt{configs/} and the committed \texttt{metrics.json} files.}
+\label{tab:pins}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Artifact & Pin \\
+\midrule
+Base model & \texttt{openbmb/MiniCPM5-1B} rev \texttt{87179e5} \\
+Base GGUF & \texttt{MiniCPM5-1B-Q4\_K\_M.gguf} rev \texttt{3d55fac} \\
+SFT adapter & \texttt{7103451b}\dots\texttt{d77ec712} (checkpoint-800) \\
+\texttt{llama.cpp} & \texttt{b31b71f} \\
+Prompt / decode & \texttt{v2}; temp 0.0, top\_p 1.0, seed 7 \\
+Dataset & Zenodo 20841898 (ODbL-1.0); dirty \texttt{2ef8ab14}, clean \texttt{78c852e3} \\
+Test manifest & records \texttt{160eec15} (2,000 entities) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\clearpage
+\begin{thebibliography}{99}
+\small
+\raggedright
+\setlength{\itemsep}{1.55ex plus 0.4ex}
+\setlength{\parsep}{0pt}
+\setlength{\parskip}{0pt}
+\sloppy
+\bibitem{cleanme} D2IP-TU Berlin, ``Clean Me If You Can,'' GitHub
+(paired dirty/clean address tables, error taxonomy, ODbL data terms).
+\url{https://github.com/D2IP-TUB/Clean-Me-If-You-Can}
+
+\bibitem{addressdoi} ``AddressTable v1.0,'' Zenodo record 20841898,
+2026-06-26. doi:\doiref{10.5281/zenodo.20841898}
+
+\bibitem{odbl} Open Data Commons, ``Open Database License
+(ODbL) v1.0.''
+\url{https://opendatacommons.org/licenses/odbl/}
+
+\bibitem{trail} E.~Beloiu, ``Trail: A Deterministic-First Log Template
+Miner with a Per-Decision Audit Trail.'' Technical report, MbitAI,
+September 2026.
+
+\bibitem{minicpm-card} OpenBMB, ``MiniCPM5-1B,'' Hugging Face
+(Apache-2.0).
+\url{https://huggingface.co/openbmb/MiniCPM5-1B}
+
+\bibitem{minicpm-paper} Y.~Hu et al., ``MiniCPM: Unveiling the
+potential of small language models with scalable training
+strategies.'' 2024. \url{https://arxiv.org/abs/2404.06395}
+
+\bibitem{minicpm-trl} OpenBMB, ``MiniCPM finetune with TRL and PEFT,''
+\url{https://github.com/OpenBMB/MiniCPM/blob/main/docs/finetune/trl.md}
+
+\bibitem{lora} E.~J.~Hu et al., ``LoRA: Low-rank adaptation of large
+language models.'' 2021. \url{https://arxiv.org/abs/2106.09685}
+
+\bibitem{trl} L.~von Werra et al., ``TRL: Transformer Reinforcement
+Learning,'' GitHub. \url{https://github.com/huggingface/trl}
+
+\bibitem{peft} S.~Mangrulkar et al., ``PEFT: State-of-the-art
+Parameter-Efficient Fine-Tuning methods,'' GitHub.
+\url{https://github.com/huggingface/peft}
+
+\bibitem{llamacpp} G.~Gerganov et al., ``llama.cpp,'' GitHub (MIT).
+\url{https://github.com/ggml-org/llama.cpp}
+
+\bibitem{repo} E.~Beloiu, ``local-slm-de-address-repair'' (Apache-2.0;
+data ODbL-1.0).
+\url{https://github.com/TMFNK/local-slm-de-address-repair}
+
+\end{thebibliography}
+
+\end{document}

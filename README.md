@@ -99,45 +99,47 @@ data is available.
 
 ## Results
 
-Historical frozen test on 2026-09-10: the same 2,000 records through all
-three systems, scored with the same field-level scorer. These results use the
-pre-fix UUID-only split and must not be described as clean held-out
-generalization. The tuned model
-is LoRA checkpoint-939 (3 epochs, Colab T4, fp16), merged and exported
-as Q4_K_M GGUF with pinned llama.cpp `b31b71f`.
+The definitive v3 frozen test ran on 2026-09-15: the same 2,000
+clean-gold-grouped records through all three systems, scored with the same
+field-level scorer. The test manifest contains original dirty/clean pairs,
+with no clean record shared across train, validation, and test.
 
 | System | Precision | Recall | F1 | Damage | Empty-field fills | Unsupported additions | Review precision | Schema | Contract | p50 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Rules floor | 0.9643 | 0.0744 | 0.1382 | 0.0 | 0 | 0 | 1.0 | 1.0 | 1.0 | 0 ms |
-| Base MiniCPM5 | 0.0311 | 0.0092 | 0.0142 | 0.0169 | 898 | 0 | 0.5927 | 0.664 | 0.0 | 1620 ms |
-| SFT MiniCPM5 | 0.8231 | 0.2438 | 0.3762 | 0.0114 | 0 | 248 | 0.9996 | 0.994 | 0.9665 | 1633 ms |
+| Rules floor | 0.9369 | 0.1033 | 0.1860 | 0.0 | 0 | 0 | 1.0 | 1.0 | 1.0 | 0 ms |
+| Base MiniCPM5 | 0.0281 | 0.0146 | 0.0192 | 0.0235 | 1,039 | 1 | 0.5445 | 0.7175 | 0.0 | 2,237.1 ms |
+| v3 SFT MiniCPM5 | 0.6984 | 0.1991 | 0.3099 | 0.0237 | 1 | 88 | 0.9992 | 0.999 | 0.9535 | 1,443.7 ms |
 
-The tuned model repairs about three times what the rules floor repairs
-(recall 0.24 vs 0.07, F1 0.38 vs 0.14) at lower precision (0.82 vs
-0.96). It never fills in an empty field: 0 empty-field fills against 898
-for the untuned base. It still makes 248 unsupported additions, where a
+The v3 SFT model improves repair F1 over the rules floor (0.3099 vs
+0.1860) and the base model (0.0192), with much higher repair precision
+than the base (0.6984 vs 0.0281). It makes one empty-field fill, compared
+with 1,039 for the base. It still makes 88 unsupported additions, where a
 prediction extends a non-empty input value with extra tokens. Damage is
-0.0114, between the rules floor (0.0) and the base (0.0169). Strongest
-fields are road (precision 0.96, recall
-0.61) and locality (0.93, 0.55). Most of the damage sits in the name
-field (rate 0.0442, 55 of 87 events).
+0.0237, slightly above the base (0.0235) and above the rules floor (0.0).
+The strongest v3 fields are road (precision 0.9233, recall 0.6066) and
+house number (0.9322, 0.1378); name damage is the main weakness
+(0.0754, 94 damaged clean fields).
 
 One scoring rule shapes how to read recall. When a dirty field is
 empty, the correct move is to leave it empty and flag it for review,
-and the scorer still counts that as a miss. So recall 0.24 means fixed
-without guessing, not gaps closed. Review precision 0.9996 supports
+and the scorer still counts that as a miss. So recall 0.1991 means fixed
+without guessing, not gaps closed. Review precision 0.9992 supports
 that reading: when the model asks for a human, it is almost always
-right to ask.
+right to ask. Review record coverage is 0.809 for v3 SFT, compared with
+0.810 for the rules floor and 0.754 for the base.
 
-Two records show both sides. The model over-edited the clean name
-`Pfarrhaus` to `Pfarrhaus Kalkhorst`, copying the locality into the
-name. On another record it held back correctly: postcode empty in the
-input, left empty in the output and flagged in `needs_review`, while
-`Hardtstr.` on the same record was repaired to `Hardtstraße`.
+Two v3 records show both sides. The model over-edited the clean name
+`Helmholtz-Gymnasium` to `Helmholtz-Gymnasium Karlsruhe`, copying the
+locality into the name. On another record it held back correctly:
+postcode empty in the input, left empty in the output and flagged in
+`needs_review`, while `Wackerbarthstr.` was repaired to
+`Wackerbarthstraße`.
 
 Per-record audit logs stay local (gitignored). The committed result
 files are `evals/frozen-test/{rules,base,sft}/metrics.json`; the shared
 `freeze.json` reflects the last run, so compare the per-system files.
+Training provenance is in `evals/sft-v3/`; the v3 GGUF is
+`models/sft-Q4_K_M-clean-gold-v3.gguf`.
 The metric definitions live in [`docs/EVAL.md`](docs/EVAL.md).
 
 ## Data and reproducibility
@@ -145,20 +147,22 @@ The metric definitions live in [`docs/EVAL.md`](docs/EVAL.md).
 The address pairs come from the published
 [Clean Me If You Can](https://github.com/D2IP-TUB/Clean-Me-If-You-Can) dataset.
 The source data is derived from OpenStreetMap and is distributed under ODbL
-1.0. Raw records are not committed to this repository. Pair-grouped splits
-keep identical canonical dirty-plus-gold pairs in one partition and target
-5,000 train / 1,000 validation / 2,000 test rows, pinned by manifest hashes.
+1.0. Raw records are not committed to this repository. The definitive
+`deduplicated_clean_gold_v1` split contains 3,540 / 728 / 1,424 distinct
+clean records in the 5,000 / 1,000 / 2,000 train / validation / test rows,
+pinned by manifest hashes. The test set contains only original source pairs.
 Dataset manifests, checksums, fixtures, configuration revisions, and result
 metadata provide the reproduction boundary.
 
-Training follows the MiniCPM5 LoRA recipe through
-[`notebooks/colab_sft.ipynb`](notebooks/colab_sft.ipynb): TRL LoRA SFT on
-evidence-preserving targets, assistant-only loss, checkpoint picked on
-validation honesty metrics. The published T4 run is
-[`configs/train_t4_run.yaml`](configs/train_t4_run.yaml) (fp16, 100 val
-records) with records in [`evals/sft-v1/`](evals/sft-v1/) (checkpoint-939,
-score 0.769, adapter `6aeb7a16…c9c8ba9`). Merge and GGUF commands are in
-[`docs/REPRO.md`](docs/REPRO.md). Local serving uses
+Training follows the MiniCPM5 LoRA recipe through the v3 Colab runner:
+TRL LoRA SFT on evidence-preserving targets, assistant-only loss, and
+checkpoint selection on validation honesty metrics. The definitive run
+used a T4 in fp16, selected `checkpoint-800` with score `0.7708`, and
+trained for 4,574.6 seconds. Its adapter hash is
+`7103451b9cc916920c59e5d68e8c3ada852b294be5eab55a0d1a9abdc77ec712`.
+The v3 GGUF hash is
+`889893112a0d7149c5df5ad0de0d928ccfd3d9d56011f2bed1e3f249d13ee54f`.
+Merge and GGUF commands are in [`docs/REPRO.md`](docs/REPRO.md). Local serving uses
 [`llama.cpp`](https://github.com/ggml-org/llama.cpp); base and tuned models
 share prompt v2, decoder settings (temp 0.0, top_p 1.0, seed 7), context
 2048, and Q4_K_M quantization.

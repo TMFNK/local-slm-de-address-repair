@@ -77,6 +77,28 @@ uv run python scripts/evaluate_local.py --system sft \
   --model-rev beacfbfdcfc6cdbeca1576e8c07c0e6c1684dd72eb9fb968b888cc929a99d25b
 ```
 
+The definitive clean-gold v3 run uses the provenance in `evals/sft-v3/`,
+the v3 manifests in `data/manifests/`, and this versioned GGUF:
+
+```bash
+uv run python scripts/evaluate_local.py --system rules \
+  --manifest data/manifests/test.json --out-dir evals/frozen-test
+
+uv run python scripts/evaluate_local.py --system sft \
+  --gguf models/sft-Q4_K_M-clean-gold-v3.gguf \
+  --model-rev 7103451b9cc916920c59e5d68e8c3ada852b294be5eab55a0d1a9abdc77ec712 \
+  --manifest data/manifests/test.json --out-dir evals/frozen-test
+```
+
+The base run uses the same command with `--system base` and the pinned base
+GGUF. All three v3 runs use test-manifest records hash
+`160eec15661de36d45265e03a053244311187d077b7c00e4d571d2294250350c`.
+The v3 SFT GGUF SHA-256 is
+`889893112a0d7149c5df5ad0de0d928ccfd3d9d56011f2bed1e3f249d13ee54f`.
+The selected adapter is `checkpoint-800`, selected on validation only with
+score `0.7708`; its full adapter SHA-256 is
+`7103451b9cc916920c59e5d68e8c3ada852b294be5eab55a0d1a9abdc77ec712`.
+
 The GGUF is gitignored. Put `models/sft-Q4_K_M.gguf` next to the base GGUF
 (688,065,792 bytes, SHA-256
 `c03e5b9c66fd43a8191ecf0eaa74351bc65e246ccef877db08d0944103703624`). The
@@ -182,9 +204,9 @@ GGUF `models/sft-Q4_K_M-pair-grouped-v2.gguf` (688,065,792 bytes,
 `3189aeac…`), Drive root
 `/content/drive/MyDrive/local-slm-de-address-repair-pair-grouped-v2`.
 
-## Re-split with seeded shuffle (2026-09-14)
+## Intermediate seeded-shuffle split (2026-09-14, superseded by v3)
 
-Current manifests use the seeded-shuffle allocator (`split_seed` 7):
+The intermediate manifests used the seeded-shuffle allocator (`split_seed` 7):
 
 | Split | Rows | Distinct pairs | Manifest records SHA-256 |
 |---|---|---|---|
@@ -197,14 +219,44 @@ six defect types occur in every split. Rules floor on the new test manifest:
 precision 0.9927, recall 0.1827, F1 0.3087, damage 0.0
 (`evals/frozen-test/rules/`).
 
-The v3 run notebook is prepared in the vault at `20_Projects/34_MiniCPM5-GRPO-Struct/docs/collab notebook/MiniCPM5_1B_address_repair_SFT_pair_grouped_v3.ipynb`: upload to Colab, select a T4 GPU, run top to bottom. It uses a fresh Drive root, pins commit `3464395`, verifies the seed-7 manifest hashes before training, and exports with `--with sentencepiece`. After downloading the v3 GGUF and checkpoints, run the frozen rules/base/SFT evaluation on the test manifest above.
+## Clean-gold v3 run (2026-09-15)
 
-## Still open
+The v3 notebook used commit `3464395ac72289265750096551329c038b0c8061`,
+a fresh Drive root, and a Tesla T4 in fp16. It selected `checkpoint-800`
+with validation honesty score `0.7708`; training took 4,574.6 seconds and
+validation scoring took 2,364.9 seconds. The definitive split uses
+`deduplicated_clean_gold_v1`: 3,540 / 728 / 1,424 distinct clean records
+in train / validation / test, with records hashes:
 
-`make_report.py` is still a placeholder. Do not treat a printed placeholder
-as an experiment result. The v3 model is not trained yet; the frozen
-base/SFT evaluation on the pair-grouped test manifest above has not run.
-Do not call any scores clean held-out generalization until then.
+- train `f7a3defaab7aa898dbc320a398f58e317dbc6bfd7435c5c7a29f5f27f2a808cd`
+- validation `e331cb5ac908827b00698b45aefa8f0f8f13df1d9e476f5ab7a384d21b8008bf`
+- test `160eec15661de36d45265e03a053244311187d077b7c00e4d571d2294250350c`
+
+The v3 adapter SHA-256 is
+`7103451b9cc916920c59e5d68e8c3ada852b294be5eab55a0d1a9abdc77ec712`.
+The local GGUF SHA-256 is
+`889893112a0d7149c5df5ad0de0d928ccfd3d9d56011f2bed1e3f249d13ee54f`.
+Provenance is preserved in `evals/sft-v3/`.
+
+Frozen test results:
+
+- rules: precision `0.9369`, recall `0.1033`, F1 `0.1860`, damage `0.0`,
+  schema/semantic/contract validity `1.0/1.0/1.0`;
+- base: precision `0.0281`, recall `0.0146`, F1 `0.0192`, damage `0.0235`,
+  `1,039` empty-field fills, schema/semantic/contract validity
+  `0.7175/0.0/0.0`;
+- v3 SFT: precision `0.6984`, recall `0.1991`, F1 `0.3099`, damage
+  `0.0237`, one empty-field fill and `88` unsupported additions,
+  schema/semantic/contract validity `0.999/0.9535/0.9535`.
+
+The two report exhibits are a name over-edit
+(`Helmholtz-Gymnasium` → `Helmholtz-Gymnasium Karlsruhe`) and a correct
+abstention: `Wackerbarthstr.` → `Wackerbarthstraße` while the empty postcode
+is left empty and sent to review.
+
+`make_report.py` remains a placeholder and is not treated as a result. The
+committed per-system metrics and freeze metadata are the result boundary;
+older UUID-only and superseded pair-grouped runs remain historical only.
 
 ## Pin record
 

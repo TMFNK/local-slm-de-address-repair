@@ -2,6 +2,15 @@
 
 Same 2,000 frozen test records for rules floor, base MiniCPM5, and SFT MiniCPM5.
 
+- Current run: clean-gold v3, test records hash
+  `160eec15661de36d45265e03a053244311187d077b7c00e4d571d2294250350c`
+- Rules F1 `0.1860`, base F1 `0.0192`, v3 SFT F1 `0.3099`
+- v3 SFT: damage `0.0237`, one empty-field fill, 88 unsupported additions,
+  schema validity `0.999`, semantic/contract validity `0.9535/0.9535`,
+  review precision `0.9992`, and review record coverage `0.809`
+- Per-system source files:
+  `evals/frozen-test/{rules,base,sft}/metrics.json`
+
 - Repair precision / recall / F1 (field level, vs paired gold)
 - Damage rate (clean fields changed wrongly / all clean fields)
 - Review precision
