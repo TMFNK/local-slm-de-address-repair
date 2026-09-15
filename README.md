@@ -16,6 +16,32 @@ Keywords: `MiniCPM5`, `small language model`, `data cleaning`, `address
 normalization`, `German addresses`, `LoRA`, `local inference`, `reproducible
 evaluation`.
 
+## For business readers (MbitAI solution)
+
+Address cleanup is a migration and master-data problem, not just a model
+demo. MbitAI can implement this pattern for companies that need to repair
+messy address records without silently changing trusted fields or sending
+customer data to a hosted model.
+
+The service delivers:
+
+- validated address JSON with a fixed output contract;
+- field-level changes and an append-only audit receipt for every decision;
+- a deterministic rules floor for mechanical repairs;
+- a local SFT model for cases the rules do not cover;
+- a `needs_review` route for missing evidence and uncertain repairs; and
+- pinned fixtures, scorecards, runbooks, and CI gates for handover.
+
+Engagements follow the same shape as the MbitAI log-parsing work:
+assessment on a representative sample, pilot beside the current normalizer,
+then production handover with customer-specific acceptance tests. The
+reference benchmark below uses public records and is not a production-safety
+claim; each customer receives its own acceptance set and review policy.
+
+Read the [MbitAI solution brief](docs/SOLUTION.md) for the buyer view and
+the [technical report](paper/address-repair-techreport.pdf) for the measured
+benchmark.
+
 ## What it does
 
 Input:
@@ -181,7 +207,7 @@ src/addr_repair/          rules, prompts, schema, audit, and scorer
 scripts/                  data, training, evaluation, and report entry points
 notebooks/                thin GPU training runner
 fixtures/                 small checked-in smoke inputs
-docs/                     split, evaluation, and reproduction notes
+docs/                     solution, split, evaluation, and reproduction notes
 paper/                    technical report outline
 tests/                    unit tests for rules, validation, and scoring
 ```
@@ -191,10 +217,11 @@ tests/                    unit tests for rules, validation, and scoring
 - [`docs/EVAL.md`](docs/EVAL.md): metric and validation definitions
 - [`docs/SPLITS.md`](docs/SPLITS.md): entity-disjoint data design
 - [`docs/REPRO.md`](docs/REPRO.md): reproduction workflow and pinned inputs
+- [`docs/SOLUTION.md`](docs/SOLUTION.md): MbitAI business solution brief
 - [`docs/exhibits/2026-09-15-v3-frozen-exhibits.md`](docs/exhibits/2026-09-15-v3-frozen-exhibits.md): committed v3 failure exhibits
 - [`paper/outline.md`](paper/outline.md): technical report structure
 
 ## License
 
 Code: Apache-2.0. Source address data: ODbL 1.0. See
-[`LICENSE`](LICENSE) and the source dataset terms.
+[`LICENSE`](LICENSE), [`NOTICE`](NOTICE), and the source dataset terms.

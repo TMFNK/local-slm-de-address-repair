@@ -9,6 +9,7 @@
 \usepackage{microtype}
 \usepackage{xcolor}
 \usepackage{setspace}
+\usepackage{tabularx}
 \usepackage[font=small,labelfont=bf,skip=8pt]{caption}
 \usepackage{hyperref}
 \setlength{\emergencystretch}{3em}
@@ -45,29 +46,30 @@
 \newcommand{\doiref}[1]{\href{https://doi.org/#1}{\texttt{#1}}}
 
 % Slightly more air between paragraphs, floats, and section heads.
-\setstretch{1.045}
-\setlength{\parskip}{0.35ex plus 0.15ex}
-\setlength{\floatsep}{11pt plus 2pt minus 2pt}
-\setlength{\textfloatsep}{12pt plus 2pt minus 2pt}
-\setlength{\intextsep}{10pt plus 2pt minus 2pt}
+\setstretch{1.08}
+\setlength{\parskip}{0.6ex plus 0.2ex}
+\setlength{\parindent}{0pt}
+\setlength{\floatsep}{14pt plus 2pt minus 2pt}
+\setlength{\textfloatsep}{15pt plus 2pt minus 2pt}
+\setlength{\intextsep}{12pt plus 2pt minus 2pt}
 \setlength{\abovedisplayskip}{8pt plus 2pt minus 2pt}
 \setlength{\belowdisplayskip}{8pt plus 2pt minus 2pt}
 \makeatletter
 \renewcommand\section{\@startsection{section}{1}{\z@}%
-  {-3.5ex \@plus -1ex \@minus -.2ex}%
-  {2.2ex \@plus .25ex}%
+  {-2.8ex \@plus -0.8ex \@minus -.2ex}%
+  {1.7ex \@plus .25ex}%
   {\normalfont\Large\bfseries}}
 \renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
-  {-3.1ex\@plus -1ex \@minus -.2ex}%
-  {1.5ex \@plus .2ex}%
+  {-2.3ex\@plus -0.7ex \@minus -.2ex}%
+  {1.1ex \@plus .2ex}%
   {\normalfont\large\bfseries}}
 \makeatother
 
-% Contribution list: a bit more room between bullets.
 \let\olditemize\itemize
 \renewcommand{\itemize}{%
   \olditemize
-  \setlength{\itemsep}{0.5ex plus 0.15ex}%
+  \setlength{\itemsep}{0.6ex plus 0.15ex}%
+  \setlength{\topsep}{0.4ex plus 0.1ex}%
   \setlength{\parsep}{0.15ex}%
 }
 
@@ -243,8 +245,9 @@ not apply.
 
 \begin{table}[H]
 \centering
-\small
+\footnotesize
 \setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
 \caption{Frozen test results, $n=2{,}000$. Contract is schema AND
 semantics (usable-output rate). Latency is per-record model time.}
 \label{tab:main}
@@ -324,8 +327,9 @@ need a name-field gate or mandatory review for name edits. Correct
 abstentions depress recall by construction, so the headline recall
 understates how often the model does the right thing and overstates
 nothing. Runtime was measured on one 8~GB machine; the memory figures
-are startup probes and do not claim a full-run process maximum. The frozen comparison is one
-deterministic run per system. The validation-subsample scores that
+are startup probes and do not claim a full-run process maximum. The
+frozen comparison is one deterministic run per system. The
+validation-subsample scores that
 picked the checkpoint used the HF generate path, while the frozen
 scores use the GGUF server path; both are pinned and reported, and
 the frozen numbers govern. No prompt, normalizer, model, or test-data
@@ -335,7 +339,7 @@ change followed the frozen result.
 \label{sec:repro}
 
 The repository is \texttt{TMFNK/local-slm-de-address-repair}
-\cite{repo} at evaluation commit \texttt{bd50ecc}; the v3 Colab
+\cite{repo} at evaluation commit \texttt{c83165a}; the v3 Colab
 training run used commit \texttt{3464395}. Setup uses Python 3.12 with a \texttt{uv}
 lockfile. Data preparation, smoke baseline, Colab training, frozen
 evaluation, and the report entry point each have one command
@@ -350,10 +354,11 @@ must use the per-system files.
 \centering
 \small
 \setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
 \caption{Pinned revisions and hashes. Full values live in
 \texttt{configs/} and the committed \texttt{metrics.json} files.}
 \label{tab:pins}
-\begin{tabular}{@{}ll@{}}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
 \toprule
 Artifact & Pin \\
 \midrule
@@ -365,7 +370,7 @@ Prompt / decode & \texttt{v2}; temp 0.0, top\_p 1.0, seed 7 \\
 Dataset & Zenodo 20841898 (ODbL-1.0); dirty \texttt{2ef8ab14}, clean \texttt{78c852e3} \\
 Test manifest & records \texttt{160eec15} (2,000 entities) \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \clearpage

@@ -1,0 +1,26 @@
+local-slm-de-address-repair
+Copyright 2026 MbitAI — https://www.mbitai.com
+
+This product includes software developed by MbitAI
+(https://www.mbitai.com).
+
+The address-repair rules, validation contract, audit trail, scorer, training
+runner, and evaluation tooling in this repository are original MbitAI code.
+
+The source address data comes from Clean Me If You Can and AddressTable
+sources derived from OpenStreetMap. The source data is not redistributed in
+this repository and remains subject to ODbL-1.0 and the applicable source
+dataset terms.
+
+The MiniCPM5 model is third-party software from OpenBMB and is subject to its
+Apache-2.0 license and model terms. llama.cpp is a separate third-party
+project under its own license. This NOTICE does not replace those licenses or
+terms.
+
+The checked-in fixtures are small public or synthetic test inputs. Raw
+customer address records and per-record evaluation audits must remain outside
+the repository.
+
+Per Apache License 2.0 section 4(d), any Derivative Works you distribute
+must include a readable copy of these attribution notices. This NOTICE file
+may not be removed.
