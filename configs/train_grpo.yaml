@@ -1,0 +1,48 @@
+# GRPO on top of v3 SFT (brief v4 run, plan 2026-09-15 step 5).
+# Notebook (step 6) calls scripts/train_grpo.py with this file and stages
+# the v3 adapter at init_adapter_path first. T4 has no bf16 (compute
+# capability 7.5), so fp16 like the 2026-09-10 T4 SFT run.
+base_config: "configs/model.yaml"
+lora_config: "configs/lora.yaml"
+data_config: "configs/data.yaml"
+
+# v3 SFT adapter this run starts from (adapter hash 7103451b9cc916920c59e5d68e8c3ada852b294be5eab55a0d1a9abdc77ec712).
+# Staged on Drive by the step-6 notebook. Dry-run prints it but never checks
+# it: Drive is not on the Mac.
+init_adapter_path: "/content/drive/MyDrive/local-slm-de-address-repair/adapters/clean-gold-v3"
+
+output_dir: "/content/drive/MyDrive/local-slm-de-address-repair/checkpoints-grpo-v4"
+logging_dir: "/content/drive/MyDrive/local-slm-de-address-repair/logs-grpo-v4"
+
+per_device_train_batch_size: 2
+gradient_accumulation_steps: 4
+learning_rate: 1.0e-6
+lr_scheduler_type: cosine
+warmup_steps: 10
+max_steps: 150
+bf16: false
+fp16: true
+# Rollout sampling: same temperature the step-4 check used (spread without
+# breaking every answer), group of 4, short 512-token outputs.
+temperature: 0.7
+num_generations: 4
+max_completion_length: 512
+# Small KL anchor to the v3 start so the short run tunes repairs, not style.
+beta: 0.01
+gradient_checkpointing: true
+logging_steps: 10
+save_steps: 50
+save_total_limit: 3
+report_to: none
+seed: 7
+# Standard LlamaForCausalLM per the official MiniCPM TRL recipe: no remote code.
+trust_remote_code: false
+
+# Hard train rows: dirty-needs-repair rows only, seeded shuffle, first N.
+train_rows: 1500
+train_seed: 7
+
+# Post-hoc checkpoint choice on a T4-friendly val sample (greedy, HF path).
+# Winner = max mean(review_precision, 1-damage, F1), never recall alone.
+val_samples: 100
+val_gen_max_tokens: 256
