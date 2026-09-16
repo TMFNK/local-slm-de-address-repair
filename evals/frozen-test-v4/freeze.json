@@ -1,0 +1,21 @@
+{
+  "decode": {
+    "max_tokens": 512,
+    "seed": 7,
+    "temperature": 0.0,
+    "top_p": 1.0
+  },
+  "gguf": "models/sft-Q4_K_M-grpo-v4.gguf",
+  "gguf_sha256": "3517d63b50e17babf330bb26b9ca7e251b1f18a35fdad7c39e2dc0d620436fd4",
+  "llama_cpp_rev": "b31b71f3a076bfc4278daad442203a9c51c6e676",
+  "manifest": "data/manifests/test.json",
+  "manifest_records_sha256": "160eec15661de36d45265e03a053244311187d077b7c00e4d571d2294250350c",
+  "model_rev": "da11017fed5869e1301749f7ce380e811ff3aee04aa8a880aee82eb75d86f58e",
+  "n_ctx": 2048,
+  "platform": "Darwin arm64",
+  "prompt_rev": "v2",
+  "repo_commit": "90e08874776c13089ab9151ea495b0ea5032ee7d",
+  "source_clean_sha256": "78c852e3a5680a7460732b67ab87d82484a718297190fa8852af73a80817a192",
+  "source_dirty_sha256": "2ef8ab1424c8c357af1aeaecef12b376cb7f20616437035f2753d0b2f2ac86ef",
+  "system": "sft"
+}

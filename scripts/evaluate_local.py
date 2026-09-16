@@ -104,9 +104,35 @@ def main() -> None:
         audit_path.unlink()
     score_rows = []
     latencies = []
+    server_errors = 0
+    consecutive_errors = 0
     for pair in pairs:
         dirty = pair["dirty"]
-        output, meta = run(dirty)
+        try:
+            output, meta = run(dirty)
+            consecutive_errors = 0
+        except RuntimeError as exc:
+            # One pathological record (e.g. model bytes that break the
+            # server's chat parse into an HTTP 500) must not kill a frozen
+            # run; it counts as unusable output. A dead server fails every
+            # row and still aborts fast via the consecutive-error guard.
+            consecutive_errors += 1
+            server_errors += 1
+            if consecutive_errors > 5:
+                raise SystemExit(
+                    f"server errored on {consecutive_errors} consecutive records; "
+                    f"aborting, the server is likely down: {exc}"
+                )
+            output, meta = None, {
+                "model_rev": model_rev,
+                "prompt_rev": PRODUCTION_PROMPT_REV,
+                "latency_ms": 0.0,
+                "finish_reason": "server-error",
+                "prompt_tokens": None,
+                "predicted_tokens": None,
+                "raw_text": "",
+                "parse_errors": [f"server-error: {exc}"],
+            }
         latencies.append(meta["latency_ms"])
         if output is None:
             ok, semantic_errors = False, meta["parse_errors"]
@@ -138,6 +164,7 @@ def main() -> None:
         )
 
     metrics = score_records(score_rows)
+    metrics["server_errors"] = server_errors
     metrics["latency_ms_median"] = round(statistics.median(latencies), 1)
     metrics["latency_ms_p95"] = round(
         statistics.quantiles(latencies, n=100)[94] if len(latencies) > 1 else latencies[0], 1

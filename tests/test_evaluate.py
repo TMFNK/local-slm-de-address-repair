@@ -264,6 +264,117 @@ def test_evaluate_sft_requires_model_rev(tmp_path, monkeypatch):
         evaluate_main()
 
 
+def test_evaluate_tolerates_isolated_server_error(tmp_path, monkeypatch):
+    # One pathological record (server HTTP 500) counts as unusable output;
+    # the frozen run completes the rest.
+    import evaluate_local
+
+    manifest_path, raw_dir, config_path = _mock_setup(tmp_path)
+    gguf_path = tmp_path / "fake.gguf"
+    gguf_path.write_bytes(b"fake-gguf")
+    calls = {"n": 0}
+
+    from addr_repair.rules import repair_with_rules
+
+    class FlakyModel:
+        def __init__(self, **kwargs):
+            pass
+
+        def repair(self, dirty):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise RuntimeError("llama.cpp server unreachable: HTTP Error 500")
+            repaired, changes, needs_review = repair_with_rules(dirty)
+            return (
+                {"clean_record": repaired, "changes": changes, "needs_review": needs_review},
+                {
+                    "model_rev": "fake-sft",
+                    "prompt_rev": "v2",
+                    "latency_ms": 1.0,
+                    "finish_reason": "stop",
+                    "raw_text": "fake",
+                    "parse_errors": [],
+                },
+            )
+
+    monkeypatch.setattr(evaluate_local, "LocalModel", FlakyModel)
+    out_dir = tmp_path / "evals"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "evaluate_local.py",
+            "--system", "sft",
+            "--manifest", str(manifest_path),
+            "--raw-dir", str(raw_dir),
+            "--out-dir", str(out_dir),
+            "--config", str(config_path),
+            "--gguf", str(gguf_path),
+            "--model-rev", "fake-sft",
+        ],
+    )
+    evaluate_main()
+
+    payload = json.loads((out_dir / "sft" / "metrics.json").read_text(encoding="utf-8"))
+    assert payload["metrics"]["n"] == 2
+    assert payload["metrics"]["server_errors"] == 1
+    assert payload["metrics"]["parse_rate"] == 0.5
+
+
+def test_evaluate_aborts_on_repeated_server_errors(tmp_path, monkeypatch):
+    # A dead server fails every row: abort fast instead of writing 2,000
+    # unusable rows.
+    import evaluate_local
+
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+    dirties = [_row(f"e{i}", "Musterstr.") for i in range(7)]
+    cleans = [_row(f"e{i}", "Musterstraße") for i in range(7)]
+    _write_csv(raw_dir / "dirty.csv", dirties)
+    _write_csv(raw_dir / "clean.csv", cleans)
+    records = load_paired_records(raw_dir / "dirty.csv", raw_dir / "clean.csv")
+    manifest_path = tmp_path / "test.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "entity_ids": [f"e{i}" for i in range(7)],
+                "records_sha256": records_hash(records),
+                "dirty_sha256": sha256_file(raw_dir / "dirty.csv"),
+                "clean_sha256": sha256_file(raw_dir / "clean.csv"),
+            }
+        ),
+        encoding="utf-8",
+    )
+    config_path = _mock_config(tmp_path)
+    gguf_path = tmp_path / "fake.gguf"
+    gguf_path.write_bytes(b"fake-gguf")
+
+    class DeadModel:
+        def __init__(self, **kwargs):
+            pass
+
+        def repair(self, dirty):
+            raise RuntimeError("llama.cpp server unreachable: connection refused")
+
+    monkeypatch.setattr(evaluate_local, "LocalModel", DeadModel)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "evaluate_local.py",
+            "--system", "sft",
+            "--manifest", str(manifest_path),
+            "--raw-dir", str(raw_dir),
+            "--out-dir", str(tmp_path / "evals"),
+            "--config", str(config_path),
+            "--gguf", str(gguf_path),
+            "--model-rev", "fake-sft",
+        ],
+    )
+    with pytest.raises(SystemExit, match="consecutive"):
+        evaluate_main()
+
+
 def test_evaluate_refuses_prompt_rev_drift(tmp_path, monkeypatch):
     manifest_path, raw_dir, config_path = _mock_setup(tmp_path)
     config_path.write_text(
