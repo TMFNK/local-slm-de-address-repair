@@ -1,6 +1,7 @@
 # Eval
 
-Same 2,000 frozen test records for rules floor, base MiniCPM5, and SFT MiniCPM5.
+Same 2,000 frozen test records for rules floor, base MiniCPM5, SFT MiniCPM5,
+and one rejected GRPO follow-up.
 
 - Current run: clean-gold v3, test records hash
   `160eec15661de36d45265e03a053244311187d077b7c00e4d571d2294250350c`
@@ -8,6 +9,11 @@ Same 2,000 frozen test records for rules floor, base MiniCPM5, and SFT MiniCPM5.
 - v3 SFT: damage `0.0237`, one empty-field fill, 88 unsupported additions,
   schema validity `0.999`, semantic/contract validity `0.9535/0.9535`,
   review precision `0.9992`, and review record coverage `0.809`
+- Rejected GRPO (150 steps from the v3 adapter, same 2,000 records):
+  F1 `0.1919`, damage `0.1332`, 5 fills, 209 additions, schema `0.784`,
+  contract `0.43`, review precision `0.989`. Source file:
+  `evals/frozen-test-v4/sft/metrics.json`. Rejected on damage with
+  falling F1; the shipped model stays v3.
 - Runtime probes: base load `1,561.8 ms` / peak RSS `810.6 MB`; v3 SFT
   load `661.7 ms` / peak RSS `816.8 MB`; rules evaluator RSS `31.4 MB`
 - Per-system source files:

@@ -135,6 +135,7 @@ with no clean record shared across train, validation, and test.
 | Rules floor | 0.9369 | 0.1033 | 0.1860 | 0.0 | 0 | 0 | 1.0 | 1.0 | 1.0 | 0 ms |
 | Base MiniCPM5 | 0.0281 | 0.0146 | 0.0192 | 0.0235 | 1,039 | 1 | 0.5445 | 0.7175 | 0.0 | 2,237.1 ms |
 | v3 SFT MiniCPM5 | 0.6984 | 0.1991 | 0.3099 | 0.0237 | 1 | 88 | 0.9992 | 0.999 | 0.9535 | 1,443.7 ms |
+| v3+GRPO MiniCPM5 (rejected) | 0.3086 | 0.1392 | 0.1919 | 0.1332 | 5 | 209 | 0.989 | 0.784 | 0.43 | 1,752.4 ms |
 
 The v3 SFT model improves repair F1 over the rules floor (0.3099 vs
 0.1860) and the base model (0.0192), with much higher repair precision
@@ -167,9 +168,23 @@ postcode empty in the input, left empty in the output and flagged in
 `needs_review`, while `Wackerbarthstr.` was repaired to
 `Wackerbarthstraße`.
 
+A brief GRPO follow-up on top of v3 was tried and rejected. Group-of-4
+rollouts under a structure-plus-repair reward (see
+[`src/addr_repair/rewards.py`](src/addr_repair/rewards.py)) trained 150
+steps from the v3 adapter; the frozen result fell to F1 0.1919 with
+damage at 0.1332, 5 empty-field fills, 209 unsupported additions, and
+schema validity 0.784. The reward priced wrong edits on already-dirty
+fields at zero while structure paid +0.40, and the policy learned the
+free-edit loophole — degenerating the Helmholtz exhibit above to
+`Heliumam-Gymnasium` with a fabricated change record. Five of its 1,500
+training rows were frozen-test rows after a Colab re-split (counted
+exactly; 0.25% of test, disclosed, not load-bearing). The run is kept as
+a negative result: the shipped model stays v3.
+
 Per-record audit logs stay local (gitignored). The committed result
-files are `evals/frozen-test-v3/{rules,base,sft}/metrics.json`; the shared
-`freeze.json` reflects the last run, so compare the per-system files.
+files are `evals/frozen-test-v3/{rules,base,sft}/metrics.json` plus
+`evals/frozen-test-v4/sft/metrics.json` for the rejected GRPO run; each
+shared `freeze.json` reflects the last run, so compare the per-system files.
 Training provenance is in `evals/sft-v3/`; the v3 GGUF is
 `models/sft-Q4_K_M-clean-gold-v3.gguf`.
 The metric definitions live in [`docs/EVAL.md`](docs/EVAL.md).

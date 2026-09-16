@@ -96,6 +96,9 @@ versus 0.1860 for the rules floor and 0.0192 for the base model. It
 makes one empty-field fill against 1,039 for the base model, while
 review precision is 0.9992. Two exhibits show both sides of that trade:
 a name-field over-edit and a correct refusal to invent a postcode.
+A brief GRPO follow-up from the v3 adapter was rejected (F1 0.1919,
+damage 0.1332) and is owned as a negative result in
+\S\ref{sec:grpo}; the tuned result above stands as the shipped model.
 Training, export, and
 evaluation use pinned revisions, dataset hashes, and committed result
 artifacts. The work evaluates public address records, not private
@@ -130,7 +133,9 @@ with checkpoint selection on honesty metrics (review precision,
 damage, F1), never recall alone; and
 \item a frozen three-way evaluation on 2,000 held-out records with two
 failure exhibits that show where the tuned model over-edits and where
-it correctly refuses.
+it correctly refuses; and
+\item a rejected GRPO follow-up with its mechanism and exhibits, kept
+so the failure is evidence rather than lore.
 \end{itemize}
 
 \section{Related work}
@@ -258,6 +263,7 @@ System & Prec & Rec & F1 & Damage & Invent & Rev P & Schema & Contract & p50 \\
 Rules & 0.9369 & 0.1033 & 0.1860 & 0.0 & 0 & 1.0 & 1.0 & 1.0 & 0 ms \\
 Base & 0.0281 & 0.0146 & 0.0192 & 0.0235 & 1039 & 0.5445 & 0.7175 & 0.0 & 2237.1 ms \\
 SFT v3 & 0.6984 & 0.1991 & 0.3099 & 0.0237 & 1 & 0.9992 & 0.999 & 0.9535 & 1443.7 ms \\
+v3+GRPO (rejected) & 0.3086 & 0.1392 & 0.1919 & 0.1332 & 5 & 0.989 & 0.784 & 0.43 & 1752.4 ms \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -316,6 +322,51 @@ have been invention. The model fixes what the input supports and stops
 where the evidence stops. The scorer counts the kept-empty postcode as
 a recall miss by design.
 
+\section{GRPO follow-up: a rejected run}
+\label{sec:grpo}
+
+After v3, one brief GRPO run tested whether reinforcement on top of SFT
+could lift repair F1 without raising damage or guessing. The reward is
+a sum of small parts in $[0,1]$: $+0.10$ each for parsing and schema
+shape, $+0.20$ for semantic checks, $+0.10$ per correct fix on a
+non-empty dirty field, $-0.15$ per wrong change to a clean field,
+$-0.20$ per empty-field fill, $-0.15$ per unsupported addition, and
+$+0.05$ per honestly flagged empty field. Training ran 150 steps on a
+Colab T4 (fp16) from the v3 adapter, LoRA only, groups of 4 rollouts
+at temperature 0.7 over 1,500 hard training rows, KL coefficient 0.01
+against the v3 start. Checkpoints were picked with the same honesty
+score as SFT; the winner tied three ways at 0.7256 and the earliest was
+kept. Before any GPU time, an offline check on 100 validation records
+had confirmed the full reward ranks answers better than a shape-only
+reward on damage and additions.
+
+On the same frozen 2,000 records the run failed its own stop rules:
+F1 0.1919 against 0.3099 for v3, damage 0.1332 against 0.0237, with 5
+fills, 209 unsupported additions, schema validity 0.784, and contract
+validity 0.43 (Table~\ref{tab:main}). Name damage reached 0.3545 with
+442 damaged clean fields. Two rows tell the story. Dirty
+\texttt{SEQUOIA Einrichtungen} came back as \texttt{Seconahalle
+sequoia Einrichtungen}, garbling the stem it was supposed to keep.
+And the Helmholtz row from the v3 exhibit degenerated further: dirty
+\texttt{Helmholtz-Gymnasium} returned as \texttt{Heliumam-Gymnasium}
+with the change record's \texttt{from} fabricated as
+\texttt{Helstein-Gymnasium} and \texttt{country\_code} dropped from the
+record, failing schema.
+
+The mechanism was predicted before the run: the reward priced wrong
+edits on already-dirty fields at zero while structure paid $+0.40$,
+and the policy learned the free-edit loophole. Recall fell anyway
+(0.1392 vs.\ 0.1991) because edits sprayed onto clean fields too, and
+late-run degeneration broke format discipline (parse rate 0.82, with
+4 model outputs that broke the server's chat parse and counted as
+unusable). The 100-row validation sample used for selection showed
+damage 0.018 and could not see the failure coming. A retry would need
+a per-edit penalty that includes wrong-dirty edits; that is a new
+plan, not a rerun. Two disclosures: 5 of the 1,500 training rows were
+frozen-test rows after a Colab-side manifest re-split (counted exactly,
+0.25\% of test, immaterial to a 5.6$\times$ damage rise but stated),
+and selection ran on Colab validation rows rather than the Mac set.
+
 \section{Limitations}
 \label{sec:limits}
 
@@ -326,7 +377,9 @@ name additions; any deployment would
 need a name-field gate or mandatory review for name edits. Correct
 abstentions depress recall by construction, so the headline recall
 understates how often the model does the right thing and overstates
-nothing. Runtime was measured on one 8~GB machine; the memory figures
+nothing. The rejected GRPO run additionally trained on 5 frozen-test
+rows after a Colab-side re-split and selected on Colab validation rows;
+its numbers are reported, not shipped. Runtime was measured on one 8~GB machine; the memory figures
 are startup probes and do not claim a full-run process maximum. The
 frozen comparison is one deterministic run per system. The
 validation-subsample scores that
@@ -340,7 +393,10 @@ change followed the frozen result.
 
 The repository is \texttt{TMFNK/local-slm-de-address-repair}
 \cite{repo} at evaluation commit \texttt{c83165a}; the v3 Colab
-training run used commit \texttt{3464395}. Setup uses Python 3.12 with a \texttt{uv}
+training run used commit \texttt{3464395}. The GRPO frozen eval ran at
+\texttt{90e0887} plus the server-tolerance harness change (committed as
+\texttt{0ecbfe1}); the change only converts an abort into counted
+unusable rows and cannot move any other number. Setup uses Python 3.12 with a \texttt{uv}
 lockfile. Data preparation, smoke baseline, Colab training, frozen
 evaluation, and the report entry point each have one command
 (\texttt{docs/REPRO.md}); \texttt{make\_report.py} remains a
@@ -365,6 +421,8 @@ Artifact & Pin \\
 Base model & \texttt{openbmb/MiniCPM5-1B} rev \texttt{87179e5} \\
 Base GGUF & \texttt{MiniCPM5-1B-Q4\_K\_M.gguf} rev \texttt{3d55fac} \\
 SFT adapter & \texttt{7103451b}\dots\texttt{d77ec712} (checkpoint-800) \\
+GRPO adapter & \texttt{da11017f}\dots\texttt{75d86f58} (checkpoint-50, rejected) \\
+GRPO GGUF & \texttt{sft-Q4\_K\_M-grpo-v4.gguf} \texttt{3517d63b}\dots\texttt{620436fd} \\
 \texttt{llama.cpp} & \texttt{b31b71f} \\
 Prompt / decode & \texttt{v2}; temp 0.0, top\_p 1.0, seed 7 \\
 Dataset & Zenodo 20841898 (ODbL-1.0); dirty \texttt{2ef8ab14}, clean \texttt{78c852e3} \\
