@@ -1,5 +1,7 @@
 # MiniCPM5 German Address Repair
 
+[![DOI](https://zenodo.org/badge/1361261201.svg)](https://doi.org/10.5281/zenodo.22834786)
+
 Fine-tune a small language model to repair messy German named-address records
 without silently inventing information.
 
@@ -21,9 +23,10 @@ evaluation`.
 Release `v0.1.0` is the immutable software snapshot for the results in this
 repository. The corresponding [GitHub release](https://github.com/TMFNK/local-slm-de-address-repair/releases/tag/v0.1.0)
 contains the source archive and a supplementary manifest archive. The Zenodo
-software DOI is pending deposition. Replace `PLACEHOLDER_ZENODO_DOI`,
-`PLACEHOLDER_ZENODO_CONCEPT_DOI`, and `PLACEHOLDER_ZENODO_RECORD_URL` here
-and in [`CITATION.cff`](CITATION.cff) after Zenodo assigns them.
+software DOI for this release is
+[`10.5281/zenodo.22834787`](https://doi.org/10.5281/zenodo.22834787); the
+all-versions concept DOI is
+[`10.5281/zenodo.22834786`](https://doi.org/10.5281/zenodo.22834786).
 
 ### Cite this release
 
@@ -34,8 +37,8 @@ and in [`CITATION.cff`](CITATION.cff) after Zenodo assigns them.
   version = {0.1.0},
   year    = {2026},
   publisher = {Zenodo},
-  doi     = {PLACEHOLDER_ZENODO_DOI},
-  url     = {PLACEHOLDER_ZENODO_DOI_URL},
+  doi     = {10.5281/zenodo.22834787},
+  url     = {https://doi.org/10.5281/zenodo.22834787},
   license = {Apache-2.0}
 }
 ```
@@ -47,14 +50,14 @@ release after Zenodo deposition:
 
 > MbitAI. (2026). _Local Address Repair with a LoRA-Tuned MiniCPM5-1B_
 > (v0.1.0). Zenodo.
-> [PLACEHOLDER_ZENODO_DOI_URL](PLACEHOLDER_ZENODO_DOI_URL)
+> [https://doi.org/10.5281/zenodo.22834787](https://doi.org/10.5281/zenodo.22834787)
 
 | | |
 | -------------------------- | -------------------------------------------------------------------------- |
-| This version | `PLACEHOLDER_ZENODO_DOI` |
-| All versions (concept DOI) | `PLACEHOLDER_ZENODO_CONCEPT_DOI` |
+| This version | [10.5281/zenodo.22834787](https://doi.org/10.5281/zenodo.22834787) |
+| All versions (concept DOI) | [10.5281/zenodo.22834786](https://doi.org/10.5281/zenodo.22834786) |
 | GitHub tag | [`v0.1.0`](https://github.com/TMFNK/local-slm-de-address-repair/releases/tag/v0.1.0) |
-| Record | `PLACEHOLDER_ZENODO_RECORD_URL` |
+| Record | [https://zenodo.org/records/22834787](https://zenodo.org/records/22834787) |
 
 Also see [`CITATION.cff`](CITATION.cff).
 

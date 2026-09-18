@@ -12,13 +12,13 @@ authors:
   - name: MbitAI
     website: https://www.mbitai.com
 repository-code: "https://github.com/TMFNK/local-slm-de-address-repair"
-url: "https://doi.org/PLACEHOLDER_ZENODO_DOI"
+url: "https://doi.org/10.5281/zenodo.22834787"
 identifiers:
   - type: doi
-    value: PLACEHOLDER_ZENODO_DOI
+    value: 10.5281/zenodo.22834787
     description: This version
   - type: doi
-    value: PLACEHOLDER_ZENODO_CONCEPT_DOI
+    value: 10.5281/zenodo.22834786
     description: All versions
 license: Apache-2.0
 keywords:
