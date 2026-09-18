@@ -1,5 +1,17 @@
 # Reproduction
 
+## Release boundary
+
+The immutable software snapshot is the `v0.1.0` GitHub release. Its source
+archive intentionally excludes raw source data, GGUF model files, and
+per-record evaluation audits. The release also contains
+`local-slm-de-address-repair-v0.1.0-manifests.tar.gz`, a supplementary archive
+of the ignored manifests referenced by the committed metrics and run records.
+Extract it under the repository root before running the frozen commands, or
+regenerate the manifests from the pinned source dataset below. The release
+asset SHA-256 is
+`5f2e6ced37ffd5c72a951b0c4edc0b4b962e708c08a59579c47b1a7e0ef20ad0`.
+
 ## Current implementation
 
 The repository is built in evaluation-first steps. Step 1 is runnable:
@@ -80,7 +92,8 @@ uv run python scripts/evaluate_local.py --system sft \
 The definitive clean-gold v3 run uses Drive root
 `/content/drive/MyDrive/local-slm-de-address-repair-clean-gold-v3/`.
 Its downloaded provenance is in `evals/sft-v3/`, the v3 manifests are in
-`data/manifests/`, and the versioned GGUF is:
+`data/manifests/` (or the v0.1.0 supplementary manifest archive), and the
+versioned GGUF is:
 
 ```bash
 uv run python scripts/evaluate_local.py --system rules \

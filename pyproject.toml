@@ -5,7 +5,7 @@ description = "LoRA SFT repair of German address records with MiniCPM5-1B, local
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 license = { text = "Apache-2.0" }
-authors = [{ name = "TMFNK" }]
+authors = [{ name = "MbitAI" }]
 
 dependencies = [
   "datasets>=3.0",

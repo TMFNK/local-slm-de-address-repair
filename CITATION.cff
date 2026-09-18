@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite this release."
+title: "Local Address Repair with a LoRA-Tuned MiniCPM5-1B"
+abstract: >-
+  A reproducible local pipeline for repairing messy German address records
+  with deterministic rules, a LoRA-tuned MiniCPM5-1B model, validation, and
+  per-decision audit support.
+type: software
+version: "0.1.0"
+date-released: "2026-09-18"
+authors:
+  - name: MbitAI
+    website: https://www.mbitai.com
+repository-code: "https://github.com/TMFNK/local-slm-de-address-repair"
+url: "https://doi.org/PLACEHOLDER_ZENODO_DOI"
+identifiers:
+  - type: doi
+    value: PLACEHOLDER_ZENODO_DOI
+    description: This version
+  - type: doi
+    value: PLACEHOLDER_ZENODO_CONCEPT_DOI
+    description: All versions
+license: Apache-2.0
+keywords:
+  - address normalization
+  - data cleaning
+  - German addresses
+  - local language models
+  - reproducible evaluation

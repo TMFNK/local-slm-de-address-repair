@@ -16,6 +16,48 @@ Keywords: `MiniCPM5`, `small language model`, `data cleaning`, `address
 normalization`, `German addresses`, `LoRA`, `local inference`, `reproducible
 evaluation`.
 
+## Release and citation
+
+Release `v0.1.0` is the immutable software snapshot for the results in this
+repository. The corresponding [GitHub release](https://github.com/TMFNK/local-slm-de-address-repair/releases/tag/v0.1.0)
+contains the source archive and a supplementary manifest archive. The Zenodo
+software DOI is pending deposition. Replace `PLACEHOLDER_ZENODO_DOI`,
+`PLACEHOLDER_ZENODO_CONCEPT_DOI`, and `PLACEHOLDER_ZENODO_RECORD_URL` here
+and in [`CITATION.cff`](CITATION.cff) after Zenodo assigns them.
+
+### Cite this release
+
+```bibtex
+@software{mbitai2026addressrepair,
+  author  = {MbitAI},
+  title   = {Local Address Repair with a LoRA-Tuned MiniCPM5-1B},
+  version = {0.1.0},
+  year    = {2026},
+  publisher = {Zenodo},
+  doi     = {PLACEHOLDER_ZENODO_DOI},
+  url     = {PLACEHOLDER_ZENODO_DOI_URL},
+  license = {Apache-2.0}
+}
+```
+
+## Cite this (Zenodo)
+
+If you use this project or publish numbers from it, please cite the archived
+release after Zenodo deposition:
+
+> MbitAI. (2026). _Local Address Repair with a LoRA-Tuned MiniCPM5-1B_
+> (v0.1.0). Zenodo.
+> [PLACEHOLDER_ZENODO_DOI_URL](PLACEHOLDER_ZENODO_DOI_URL)
+
+| | |
+| -------------------------- | -------------------------------------------------------------------------- |
+| This version | `PLACEHOLDER_ZENODO_DOI` |
+| All versions (concept DOI) | `PLACEHOLDER_ZENODO_CONCEPT_DOI` |
+| GitHub tag | [`v0.1.0`](https://github.com/TMFNK/local-slm-de-address-repair/releases/tag/v0.1.0) |
+| Record | `PLACEHOLDER_ZENODO_RECORD_URL` |
+
+Also see [`CITATION.cff`](CITATION.cff).
+
 ## For business readers (MbitAI solution)
 
 Address cleanup is a migration and master-data problem, not just a model
@@ -224,6 +266,15 @@ clean records in the 5,000 / 1,000 / 2,000 train / validation / test rows,
 pinned by manifest hashes. The test set contains only original source pairs.
 Dataset manifests, checksums, fixtures, configuration revisions, and result
 metadata provide the reproduction boundary.
+
+Raw source data, GGUF model files, and per-record evaluation audits are
+intentionally excluded from Git and from the source archive. The v0.1.0 GitHub
+release provides the ignored manifests in
+`local-slm-de-address-repair-v0.1.0-manifests.tar.gz`; alternatively,
+regenerate them from the pinned source dataset as described in
+[`docs/REPRO.md`](docs/REPRO.md). Raw data and model files must be obtained
+from their respective upstream or private storage locations; per-record audits
+must be regenerated locally.
 
 Training follows the MiniCPM5 LoRA recipe through the v3 Colab runner:
 TRL LoRA SFT on evidence-preserving targets, assistant-only loss, and

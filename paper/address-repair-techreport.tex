@@ -24,7 +24,7 @@
   citecolor=black,
   urlcolor=blue!60!black,
   pdftitle={Local Address Repair with a LoRA-Tuned MiniCPM5-1B: Rules Floor, Base, and SFT on a Frozen German Test Set},
-  pdfauthor={Eduard Beloiu},
+  pdfauthor={MbitAI},
   pdfsubject={Technical report on local SLM data repair with audit trail},
   pdfkeywords={data cleaning, address normalization, small language models, LoRA, reproducibility, audit trail}
 }
@@ -75,7 +75,7 @@
 
 \title{Local Address Repair with a LoRA-Tuned MiniCPM5-1B:\\
 Rules Floor, Base, and SFT on a Frozen German Test Set}
-\author{Eduard Beloiu \\ \small MbitAI}
+\author{MbitAI}
 \date{September 2026}
 
 \begin{document}
@@ -433,11 +433,18 @@ change followed the frozen result.
 \label{sec:repro}
 
 The repository is \texttt{TMFNK/local-slm-de-address-repair}
-\cite{repo} at evaluation commit \texttt{c83165a}; the v3 Colab
-training run used commit \texttt{3464395}. The GRPO frozen eval ran at
-\texttt{90e0887} plus the server-tolerance harness change (committed as
-\texttt{0ecbfe1}); the change only converts an abort into counted
-unusable rows and cannot move any other number. Setup uses Python 3.12 with a \texttt{uv}
+\cite{repo}, released as immutable tag \texttt{v0.1.0}. The v3 frozen
+result boundary is commit \texttt{c83165aab5c4249d986084a74122e273c7d42b75};
+its Colab training run used commit \texttt{3464395}. The rejected GRPO
+result boundary is commit \texttt{0ecbfe1e9a53b3547b297d971bdfa9330e35eaf8},
+following the run code at \texttt{90e0887}; the server-tolerance harness
+change only converts an abort into counted unusable rows and cannot move any
+other number. The rejected v5p1 result boundary is commit
+\texttt{7f28b03ad0641ad76e21be4b7458e07362e0eec9}; its evaluation metadata
+records the run code boundary at \texttt{6c2350e}. The Zenodo software DOI
+placeholder is \texttt{PLACEHOLDER\_ZENODO\_DOI}, with URL
+\url{https://doi.org/PLACEHOLDER\_ZENODO\_DOI}; replace both after deposition
+assigns the release record. Setup uses Python 3.12 with a \texttt{uv}
 lockfile. Data preparation, smoke baseline, Colab training, frozen
 evaluation, and the report entry point each have one command
 (\texttt{docs/REPRO.md}); \texttt{make\_report.py} generates a Markdown
@@ -520,7 +527,7 @@ Parameter-Efficient Fine-Tuning methods,'' GitHub.
 \bibitem{llamacpp} G.~Gerganov et al., ``llama.cpp,'' GitHub (MIT).
 \url{https://github.com/ggml-org/llama.cpp}
 
-\bibitem{repo} E.~Beloiu, ``local-slm-de-address-repair'' (Apache-2.0;
+\bibitem{repo} MbitAI, ``local-slm-de-address-repair'' (Apache-2.0;
 data ODbL-1.0).
 \url{https://github.com/TMFNK/local-slm-de-address-repair}
 
