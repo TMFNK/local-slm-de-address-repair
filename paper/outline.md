@@ -12,7 +12,11 @@
    (`Helmholtz-Gymnasium` → `Helmholtz-Gymnasium Karlsruhe`) and the
    correct review refusal for an empty postcode after repairing
    `Wackerbarthstr.` → `Wackerbarthstraße`.
-6. Limits: public address data only, benchmark scope, no invented values, no production safety claim.
-7. Repro: tag, lockfile, hashes, commands, raw artifacts. The selected v3
+6. Negative and superseded results: the UUID-only SFT v1 run, the
+   four-address pair-grouped SFT v2 run, the rejected GRPO v4 run, and the
+   rejected targeted SFT v5p1 run.
+7. Limits: public address data only, benchmark scope, no invented values,
+   no production safety claim.
+8. Repro: tag, lockfile, hashes, commands, raw artifacts. The selected v3
    checkpoint is `checkpoint-800`, with adapter SHA-256
    `7103451b9cc916920c59e5d68e8c3ada852b294be5eab55a0d1a9abdc77ec712`.

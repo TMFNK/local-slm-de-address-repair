@@ -367,6 +367,46 @@ frozen-test rows after a Colab-side manifest re-split (counted exactly,
 0.25\% of test, immaterial to a 5.6$\times$ damage rise but stated),
 and selection ran on Colab validation rows rather than the Mac set.
 
+\section{Superseded SFT experiments}
+\label{sec:superseded}
+
+The v3 model is the shipped baseline, but it was not the first adapter
+trained in this project. We keep the earlier runs because they document
+why the split and evaluation rules were tightened.
+
+\paragraph{SFT v1: invalid held-out claim.} The first training run used
+UUID-only splits. Its frozen SFT result was repair F1 0.3762, but the
+split did not group dirty and clean rows by their underlying address
+pair. The number is therefore not clean held-out evidence and is not
+used in the comparison above. The run and its hashes remain in the
+repository as historical provenance.
+
+\paragraph{SFT v2: unusable pair-grouped split.} The first attempt to
+repair the split grouped pairs, but its largest-first allocator placed
+only four distinct addresses across the train, validation, and test
+partitions. The selected checkpoints tied at validation repair F1 0.0.
+The artifact was retired without a frozen test claim. This failure led to
+the later clean-gold split, which has 3,540, 728, and 1,424 distinct
+clean records in train, validation, and test.
+
+\paragraph{Targeted SFT v5p1: worse safety trade-off.} After the v3
+validation analysis showed that name was its main damage hotspot, one
+bounded epoch trained on name and locality differences plus clean
+controls. The validation result looked plausible: repair F1 0.3269,
+damage 0.0391, and contract validity 0.965. On the unchanged frozen test,
+however, v5p1 reached F1 0.1785, damage 0.1688, 288 unsupported additions,
+and contract validity 0.393, versus 0.3099, 0.0237, 88, and 0.9535 for
+v3. The targeted direction was rejected because it increased harmful
+changes while failing to improve repair quality.
+
+The v5p1 server produced all 2,000 audit rows. Scoring initially stopped
+on one schema-invalid row because the model returned change objects in
+\texttt{needs\_review} instead of field-name strings. The scorer was
+corrected to skip non-string review entries without granting review
+credit, a regression test was added, and the preserved audit was
+rescored offline. The corrected score is the reported result; the audit
+and manifest integrity checks passed.
+
 \section{Limitations}
 \label{sec:limits}
 

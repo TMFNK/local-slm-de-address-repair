@@ -189,6 +189,30 @@ Training provenance is in `evals/sft-v3/`; the v3 GGUF is
 `models/sft-Q4_K_M-clean-gold-v3.gguf`.
 The metric definitions live in [`docs/EVAL.md`](docs/EVAL.md).
 
+### Experiment history
+
+v3 is the shipped baseline. The other runs remain in the record because
+they exposed problems that a single best-score summary would hide:
+
+- **SFT v1:** The first training run used UUID-only splits. Its frozen
+  result is not clean held-out evidence, so it is historical rather than a
+  benchmark result.
+- **SFT v2:** The first pair-grouped rerun assigned only four distinct
+  addresses across the splits. Validation repair F1 was `0.0`, and the
+  artifact was retired without a frozen test claim.
+- **GRPO v4:** A 150-step follow-up from v3 fell to F1 `0.1919` and raised
+  damage from `0.0237` to `0.1332`. The reward gave too much credit to
+  well-formed output and did not penalize wrong edits to already-dirty
+  fields, so the run was rejected.
+- **Targeted SFT v5p1:** Focusing training on name and locality examples
+  produced F1 `0.1785`, damage `0.1688`, 288 unsupported additions, and
+  contract validity `0.393` on the same frozen test set. It was rejected
+  because the targeted improvement increased harmful edits.
+
+The full run history, hashes, split diagnostics, and reproduction commands
+are in [`docs/REPRO.md`](docs/REPRO.md). These experiments are reported as
+negative or superseded results, not as competing shipped models.
+
 ## Data and reproducibility
 
 The address pairs come from the published
