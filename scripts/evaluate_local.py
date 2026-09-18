@@ -66,7 +66,7 @@ def main() -> None:
     parser.add_argument("--manifest", default="data/manifests/test.json")
     parser.add_argument("--raw-dir", default="data/raw")
     parser.add_argument("--id-field", default="id")
-    parser.add_argument("--out-dir", default="evals/frozen-test/")
+    parser.add_argument("--out-dir", default="evals/frozen-test-v3/")
     parser.add_argument("--gguf", default=None, help="local GGUF path (defaults to model.yaml local_gguf)")
     parser.add_argument("--model-rev", default=None, help="required for sft: adapter/checkpoint hash")
     args = parser.parse_args()

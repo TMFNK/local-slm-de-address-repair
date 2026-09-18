@@ -1,9 +1,11 @@
 # Eval
 
-Same 2,000 frozen test records for rules floor, base MiniCPM5, SFT MiniCPM5,
-and one rejected GRPO follow-up.
+The definitive comparison uses the same 2,000 frozen test records for the
+rules floor, base MiniCPM5, and shipped clean-gold v3 SFT model. A separate
+targeted SFT v5p1 run is retained as an experimental result on the same
+frozen boundary; the GRPO v4 result is a rejected follow-up.
 
-- Current run: clean-gold v3, test records hash
+- Definitive run: clean-gold v3, test records hash
   `160eec15661de36d45265e03a053244311187d077b7c00e4d571d2294250350c`
 - Rules F1 `0.1860`, base F1 `0.0192`, v3 SFT F1 `0.3099`
 - v3 SFT: damage `0.0237`, one empty-field fill, 88 unsupported additions,
@@ -18,12 +20,15 @@ and one rejected GRPO follow-up.
   288 unsupported additions, schema `0.796`, semantic/contract validity
   `0.393/0.393`, review precision `0.9743`. The result was rescored offline
   from its intact 2,000-row audit after fixing a scorer crash on one
-  schema-invalid `needs_review` shape. It is experimental; v3 remains
-  shipped.
+  schema-invalid `needs_review` shape. The audit contains four counted
+  server-error rows, and no rows were dropped. It is experimental; v3
+  remains shipped.
 - Runtime probes: base load `1,561.8 ms` / peak RSS `810.6 MB`; v3 SFT
   load `661.7 ms` / peak RSS `816.8 MB`; rules evaluator RSS `31.4 MB`
 - Per-system source files:
   `evals/frozen-test-v3/{rules,base,sft}/metrics.json`
+- Experimental v5p1 source file:
+  `evals/frozen-test-v5p1/sft/metrics.json`
 
 - Repair precision / recall / F1 (field level, vs paired gold)
 - Damage rate (clean fields changed wrongly / all clean fields)

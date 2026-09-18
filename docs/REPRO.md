@@ -84,12 +84,12 @@ Its downloaded provenance is in `evals/sft-v3/`, the v3 manifests are in
 
 ```bash
 uv run python scripts/evaluate_local.py --system rules \
-  --manifest data/manifests/test.json --out-dir evals/frozen-test
+  --manifest data/manifests/test.json --out-dir evals/frozen-test-v3
 
 uv run python scripts/evaluate_local.py --system sft \
   --gguf models/sft-Q4_K_M-clean-gold-v3.gguf \
   --model-rev 7103451b9cc916920c59e5d68e8c3ada852b294be5eab55a0d1a9abdc77ec712 \
-  --manifest data/manifests/test.json --out-dir evals/frozen-test
+  --manifest data/manifests/test.json --out-dir evals/frozen-test-v3
 ```
 
 The base run uses the same command with `--system base` and the pinned base
@@ -221,9 +221,10 @@ The intermediate manifests used the seeded-shuffle allocator (`split_seed` 7):
 | test | 2,000 | 367 | `a6705579e5c1a0cedc0cde34267d122d1eb475c53659073626719ad31b09c0b1` |
 
 No fingerprint crosses splits; smoke 100 is in train and outside test; all
-six defect types occur in every split. Rules floor on the new test manifest:
-precision 0.9927, recall 0.1827, F1 0.3087, damage 0.0
-(`evals/frozen-test/rules/`).
+six defect types occur in every split. Rules floor on the intermediate test
+manifest: precision 0.9927, recall 0.1827, F1 0.3087, damage 0.0. The
+superseded generic `evals/frozen-test/` copy is not a separate result; the
+definitive v3 result is in `evals/frozen-test-v3/`.
 
 ## Clean-gold v3 run (2026-09-15)
 
@@ -266,9 +267,10 @@ The two report exhibits are a name over-edit
 abstention: `Wackerbarthstr.` → `Wackerbarthstraße` while the empty postcode
 is left empty and sent to review.
 
-`make_report.py` remains a placeholder and is not treated as a result. The
-committed per-system metrics and freeze metadata are the result boundary;
-older UUID-only and superseded pair-grouped runs remain historical only.
+`make_report.py` generates a Markdown summary from committed metrics; it is
+not itself a result boundary. The committed per-system metrics and freeze
+metadata are the result boundary; older UUID-only and superseded pair-grouped
+runs remain historical only.
 
 ## Targeted name/locality SFT v5p1 (2026-09-18, frozen eval complete)
 
@@ -317,8 +319,11 @@ audit was rescored offline without contacting the server.
 
 The offline result boundary is
 `evals/frozen-test-v5p1/{sft/metrics.json,freeze.json}`. The audit contained
-one malformed review row, zero server errors, and passed all manifest,
-record-order, dirty-payload, and input-fingerprint checks. Results:
+one malformed review row and four counted server-error rows, and passed all
+manifest, record-order, dirty-payload, and input-fingerprint checks. The
+audit still contains all 2,000 input rows; the four transient HTTP 500
+responses are represented as unusable outputs in the committed metrics.
+Results:
 
 - repair precision `0.2619`, recall `0.1354`, F1 `0.1785`;
 - damage `0.1688`, inventions `5`, unsupported additions `288`;

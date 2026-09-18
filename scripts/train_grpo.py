@@ -1,4 +1,7 @@
-"""GRPO on top of v3 SFT (plan 2026-09-15, step 5). Colab-safe.
+"""PLANNED/UNRUN: GRPO on top of v3 SFT (plan 2026-09-15, step 5).
+
+This is research material only; it does not describe a shipped model.
+Colab-safe.
 
 Usage (Colab GPU, after staging the v3 adapter — step 6 notebook):
     !python scripts/train_grpo.py --config configs/train_grpo.yaml

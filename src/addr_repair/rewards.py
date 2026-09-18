@@ -1,4 +1,7 @@
-"""GRPO reward for address repair (plan 2026-09-16, Phase 1).
+"""PLANNED/UNRUN: GRPO reward for address repair (plan 2026-09-16, Phase 1).
+
+This research material supports an unrun follow-up; it is not a shipped
+training or inference path.
 
 Format is a gate. Field outcomes carry the rank. ``scripts/train_grpo.py``
 wraps :func:`reward_for_training` for TRL.

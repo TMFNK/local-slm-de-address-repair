@@ -399,7 +399,8 @@ and contract validity 0.393, versus 0.3099, 0.0237, 88, and 0.9535 for
 v3. The targeted direction was rejected because it increased harmful
 changes while failing to improve repair quality.
 
-The v5p1 server produced all 2,000 audit rows. Scoring initially stopped
+The v5p1 server produced all 2,000 audit rows, including four transient
+HTTP 500 responses recorded as unusable outputs. Scoring initially stopped
 on one schema-invalid row because the model returned change objects in
 \texttt{needs\_review} instead of field-name strings. The scorer was
 corrected to skip non-string review entries without granting review
@@ -439,8 +440,9 @@ training run used commit \texttt{3464395}. The GRPO frozen eval ran at
 unusable rows and cannot move any other number. Setup uses Python 3.12 with a \texttt{uv}
 lockfile. Data preparation, smoke baseline, Colab training, frozen
 evaluation, and the report entry point each have one command
-(\texttt{docs/REPRO.md}); \texttt{make\_report.py} remains a
-placeholder and is not treated as a result. Each frozen run checks the
+(\texttt{docs/REPRO.md}); \texttt{make\_report.py} generates a Markdown
+summary from committed metrics and is not itself a result boundary. Each
+frozen run checks the
 manifest hash before scoring and writes ignored per-record
 \texttt{audit.jsonl} plus committed per-system \texttt{metrics.json};
 the shared \texttt{freeze.json} reflects the last run, so comparisons

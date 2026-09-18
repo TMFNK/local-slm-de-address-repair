@@ -1,4 +1,5 @@
-# GRPO on top of v3 SFT (v5 run, plan 2026-09-16 Phase 3).
+# PLANNED/UNRUN: GRPO on top of v3 SFT (v5 run, plan 2026-09-16 Phase 3).
+# This config is research material only; no v5 model was shipped.
 # Notebook (colab_grpo_v5) calls scripts/train_grpo.py with this file and
 # stages the v3 adapter at init_adapter_path first. T4 has no bf16 (compute
 # capability 7.5), so fp16 like the 2026-09-10 T4 SFT run.
