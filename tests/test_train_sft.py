@@ -405,3 +405,50 @@ def test_build_sft_config_reports_unsupported_kwargs(tmp_path, monkeypatch):
     finally:
         fields["packing"] = removed
     assert dropped == ["packing"]
+
+
+def test_assert_adapter_parity_accepts_pinned_shape(tmp_path):
+    from types import SimpleNamespace
+
+    active = SimpleNamespace(
+        r=16,
+        lora_alpha=32,
+        target_modules=[
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
+        ],
+    )
+    train_sft.assert_adapter_parity(
+        active,
+        {
+            "r": 16,
+            "lora_alpha": 32,
+            "target_modules": [
+                "q_proj",
+                "k_proj",
+                "v_proj",
+                "o_proj",
+                "gate_proj",
+                "up_proj",
+                "down_proj",
+            ],
+        },
+        tmp_path / "adapter",
+    )
+
+
+def test_assert_adapter_parity_rejects_foreign_shape(tmp_path):
+    from types import SimpleNamespace
+
+    active = SimpleNamespace(r=8, lora_alpha=32, target_modules=["q_proj"])
+    with pytest.raises(SystemExit, match="foreign adapter"):
+        train_sft.assert_adapter_parity(
+            active,
+            {"r": 16, "lora_alpha": 32, "target_modules": ["q_proj"]},
+            tmp_path / "adapter",
+        )

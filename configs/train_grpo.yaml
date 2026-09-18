@@ -1,6 +1,6 @@
-# GRPO on top of v3 SFT (brief v4 run, plan 2026-09-15 step 5).
-# Notebook (step 6) calls scripts/train_grpo.py with this file and stages
-# the v3 adapter at init_adapter_path first. T4 has no bf16 (compute
+# GRPO on top of v3 SFT (v5 run, plan 2026-09-16 Phase 3).
+# Notebook (colab_grpo_v5) calls scripts/train_grpo.py with this file and
+# stages the v3 adapter at init_adapter_path first. T4 has no bf16 (compute
 # capability 7.5), so fp16 like the 2026-09-10 T4 SFT run.
 base_config: "configs/model.yaml"
 lora_config: "configs/lora.yaml"
@@ -11,8 +11,8 @@ data_config: "configs/data.yaml"
 # it: Drive is not on the Mac.
 init_adapter_path: "/content/drive/MyDrive/local-slm-de-address-repair/adapters/clean-gold-v3"
 
-output_dir: "/content/drive/MyDrive/local-slm-de-address-repair/checkpoints-grpo-v4"
-logging_dir: "/content/drive/MyDrive/local-slm-de-address-repair/logs-grpo-v4"
+output_dir: "/content/drive/MyDrive/local-slm-de-address-repair/checkpoints-grpo-v5"
+logging_dir: "/content/drive/MyDrive/local-slm-de-address-repair/logs-grpo-v5"
 
 per_device_train_batch_size: 2
 gradient_accumulation_steps: 4
@@ -22,9 +22,9 @@ warmup_steps: 10
 max_steps: 150
 bf16: false
 fp16: true
-# Rollout sampling: same temperature the step-4 check used (spread without
-# breaking every answer), group of 4, short 512-token outputs.
-temperature: 0.7
+# Rollout sampling: Phase 2 gate temperature (drop to 0.4 only if that
+# check's parse rate was below 0.95). Group of 4, short 512-token outputs.
+temperature: 0.5
 num_generations: 4
 max_completion_length: 512
 # Small KL anchor to the v3 start so the short run tunes repairs, not style.

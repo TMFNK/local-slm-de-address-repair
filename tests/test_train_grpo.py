@@ -72,6 +72,7 @@ def _setup(tmp_path):
 
     _manifest("train", ["e1", "e2", "e3", "e4"])
     _manifest("val", ["e3"])
+    _manifest("test", [])
     (tmp_path / "model.yaml").write_text(
         "model_id: fake/MiniCPM5-1B\nmodel_rev: deadbeef\nprompt_rev: v2\n"
         "chat_template_mode: no-think\ndecode: {temperature: 0.0, top_p: 1.0, max_tokens: 512, seed: 7}\n",
@@ -130,7 +131,7 @@ def test_grpo_reward_scores_good_above_broken():
         }
     )
     scores = train_grpo.grpo_reward(["p", "p"], [good, "not json"], [dirty, dirty], [gold, gold])
-    assert scores == [0.5, 0.0]
+    assert scores == [0.22, 0.0]
 
 
 def test_completion_unwrap_handles_trl_message_lists():
@@ -154,7 +155,7 @@ def test_grpo_reward_accepts_trl_message_list_completions():
     )
     wrapped = [[{"role": "assistant", "content": good}]]
     scores = train_grpo.grpo_reward(["p"], [wrapped], [dirty], [gold])
-    assert scores == [0.5]
+    assert scores == [0.22]
 
 
 def test_build_grpo_config_constructs_real_config(tmp_path):
@@ -196,6 +197,7 @@ def test_dry_run_ok(tmp_path, monkeypatch, capsys):
     assert "DRY RUN" in out
     assert "picked=2" in out
     assert "group=4" in out
+    assert "test overlap: none" in out
     assert "mean(review_precision, 1-damage, F1)" in out
 
 
@@ -215,9 +217,7 @@ def test_adapter_parity_accepts_v3_shape(tmp_path, capsys):
 
     cfg = _setup(tmp_path)
     resolved = train_sft.load_resolved_config(cfg)
-    active = SimpleNamespace(
-        r=16, lora_alpha=32, target_modules=["v_proj", "q_proj"]
-    )
+    active = SimpleNamespace(r=16, lora_alpha=32, target_modules=["v_proj", "q_proj"])
     train_grpo.assert_adapter_parity(active, resolved["lora"], tmp_path / "adapter")
     assert "continuing v3 adapter in place" in capsys.readouterr().out
 
@@ -269,9 +269,7 @@ def test_run_training_continues_adapter_trainable_without_fresh_config(tmp_path,
         def __init__(self):
             super().__init__()
             self.peft_config = {
-                "default": SimpleNamespace(
-                    r=16, lora_alpha=32, target_modules=["q_proj", "v_proj"]
-                )
+                "default": SimpleNamespace(r=16, lora_alpha=32, target_modules=["q_proj", "v_proj"])
             }
 
     @classmethod
@@ -287,7 +285,9 @@ def test_run_training_continues_adapter_trainable_without_fresh_config(tmp_path,
             calls["resume"] = resume_from_checkpoint
 
     monkeypatch.setattr(
-        transformers.AutoTokenizer, "from_pretrained", classmethod(lambda cls, *a, **k: FakeTokenizer())
+        transformers.AutoTokenizer,
+        "from_pretrained",
+        classmethod(lambda cls, *a, **k: FakeTokenizer()),
     )
     monkeypatch.setattr(
         transformers.AutoModelForCausalLM,
@@ -315,3 +315,57 @@ def test_run_training_continues_adapter_trainable_without_fresh_config(tmp_path,
     assert "peft_config" not in calls["trainer_kwargs"]
     assert record["continued_adapter_in_place"] is True
     assert record["winner"] == "checkpoint-1"
+    assert record["mode"] == "grpo-v5"
+
+
+def test_assert_no_test_overlap_allows_disjoint_ids(tmp_path):
+    import train_sft
+
+    cfg = _setup(tmp_path)
+    resolved = train_sft.load_resolved_config(cfg)
+    pairs, _ = train_sft.load_split_pairs(resolved, "train")
+    rows, _ = train_grpo.select_grpo_rows(pairs, 2, seed=7)
+    train_grpo.assert_no_test_overlap(rows, set())
+    train_grpo.assert_no_test_overlap(rows, {"not-in-train"})
+
+
+def test_assert_no_test_overlap_aborts_on_leaked_id(tmp_path):
+    import train_sft
+
+    cfg = _setup(tmp_path)
+    resolved = train_sft.load_resolved_config(cfg)
+    pairs, _ = train_sft.load_split_pairs(resolved, "train")
+    rows, _ = train_grpo.select_grpo_rows(pairs, 2, seed=7)
+    leaked = rows[0]["id"]
+    with pytest.raises(SystemExit, match="frozen test split"):
+        train_grpo.assert_no_test_overlap(rows, {leaked})
+
+
+def test_dry_run_aborts_when_test_manifest_overlaps_train(tmp_path, monkeypatch):
+    import train_sft
+
+    from addr_repair.io import load_paired_records, records_hash, sha256_file
+
+    cfg = _setup(tmp_path)
+    resolved = train_sft.load_resolved_config(cfg)
+    train_pairs, _ = train_sft.load_split_pairs(resolved, "train")
+    rows, _ = train_grpo.select_grpo_rows(train_pairs, 2, seed=7)
+    leaked = rows[0]["id"]
+    raw_dir = tmp_path / "raw"
+    records = load_paired_records(raw_dir / "dirty.csv", raw_dir / "clean.csv")
+    by_id = {record["id"]: record for record in records}
+    recs = [by_id[leaked]]
+    (tmp_path / "manifests" / "test.json").write_text(
+        json.dumps(
+            {
+                "entity_ids": [leaked],
+                "records_sha256": records_hash(recs),
+                "dirty_sha256": sha256_file(raw_dir / "dirty.csv"),
+                "clean_sha256": sha256_file(raw_dir / "clean.csv"),
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sys, "argv", ["train_grpo.py", "--config", str(cfg), "--dry-run"])
+    with pytest.raises(SystemExit, match="frozen test split"):
+        train_grpo.main()

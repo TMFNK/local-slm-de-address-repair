@@ -1,4 +1,4 @@
-"""Step 4 offline reward check (plan 2026-09-15).
+"""Step 4 offline reward check (plan 2026-09-15, Phase 1 extras 2026-09-16).
 
 Samples the frozen v3 GGUF on 100 val records x 4 answers and scores each
 answer with rewards.py. Batched and resumable for a small Mac.
@@ -90,7 +90,7 @@ def _sample_batch(args: argparse.Namespace) -> None:
                     model=Path(args.gguf).name,
                     model_rev=args.model_rev,
                     decode={
-                        "temperature": SAMPLING_TEMP,
+                        "temperature": args.temperature,
                         "top_p": 1.0,
                         "max_tokens": 512,
                         "seed": seed,
@@ -105,7 +105,7 @@ def _sample_batch(args: argparse.Namespace) -> None:
                             "entity_id": pair["id"],
                             "sample": sample,
                             "seed": seed,
-                            "temperature": SAMPLING_TEMP,
+                            "temperature": args.temperature,
                             "raw_text": meta["raw_text"],
                             "output": output,
                             "latency_ms": meta["latency_ms"],
@@ -204,12 +204,20 @@ def _analyze(args: argparse.Namespace) -> None:
         fills = sum(r["reward"]["n_invention"] for r in picks.values())
         adds = sum(r["reward"]["n_addition"] for r in picks.values())
         flagged = sum(len((r["output"] or {}).get("needs_review", [])) for r in picks.values())
-        return {"fills": fills, "additions": adds, "review_flags": flagged}
+        wrong_dirty = sum(r["reward"].get("n_wrong_dirty", 0) for r in picks.values())
+        missed = sum(r["reward"].get("n_missed", 0) for r in picks.values())
+        return {
+            "fills": fills,
+            "additions": adds,
+            "review_flags": flagged,
+            "wrong_dirty": wrong_dirty,
+            "missed": missed,
+        }
 
     report = {
         "n_records": VAL_N,
         "samples_per_record": SAMPLES,
-        "temperature": SAMPLING_TEMP,
+        "temperature": args.temperature,
         "manifest": str(args.manifest),
         "gguf": str(args.gguf),
         "model_rev": args.model_rev,
@@ -253,6 +261,12 @@ def main() -> None:
     parser.add_argument("--out-dir", default="evals/reward-check-v1")
     parser.add_argument("--batch-start", type=int, default=0)
     parser.add_argument("--batch-count", type=int, default=10)
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=SAMPLING_TEMP,
+        help="Rollout temperature (Phase 2 gate uses 0.5, then 0.4 if parse_ok < 0.95).",
+    )
     parser.add_argument("--analyze", action="store_true")
     args = parser.parse_args()
     if args.analyze:

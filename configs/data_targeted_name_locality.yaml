@@ -1,0 +1,11 @@
+# Targeted SFT view built by scripts/build_targeted_sft.py.
+# Raw files and val/test content remain the pinned v3 inputs.
+source_config: "configs/data.yaml"
+dirty_file: "dirty.csv"
+clean_file: "clean.csv"
+id_field: "id"
+raw_dir: "data/raw"
+manifests_dir: "data/manifests/targeted-name-locality-v1"
+source_train_manifest: "data/manifests/train.json"
+target_fields: ["name", "locality"]
+control_rule: "all fields equal between dirty and gold"

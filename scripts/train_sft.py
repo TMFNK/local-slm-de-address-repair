@@ -405,6 +405,23 @@ def build_sft_config(train_cfg: dict, output_dir: Path, use_bf16: bool):
     return SFTConfig(**kept), dropped
 
 
+def assert_adapter_parity(active, lora_cfg: dict, adapter_path: Path) -> None:
+    """Refuse to continue from an adapter with a foreign LoRA shape."""
+    expected_targets = sorted(lora_cfg["target_modules"])
+    actual_targets = sorted(active.target_modules)
+    if (
+        active.r != lora_cfg["r"]
+        or active.lora_alpha != lora_cfg["lora_alpha"]
+        or actual_targets != expected_targets
+    ):
+        raise SystemExit(
+            f"staged adapter {adapter_path} is r={active.r} alpha={active.lora_alpha} "
+            f"targets={actual_targets}; configs/lora.yaml pins r={lora_cfg['r']} "
+            f"alpha={lora_cfg['lora_alpha']} targets={expected_targets}. "
+            "Refusing to continue a foreign adapter."
+        )
+
+
 def score_val_sample(
     model,
     tokenizer,
@@ -463,7 +480,7 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
     import torch
     import transformers
     from datasets import Dataset
-    from peft import LoraConfig
+    from peft import LoraConfig, PeftModel
     from trl import SFTTrainer
 
     assert_prompt_parity(resolved)
@@ -487,7 +504,7 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     template_before = apply_training_template(tokenizer)
-    model = transformers.AutoModelForCausalLM.from_pretrained(
+    base_model = transformers.AutoModelForCausalLM.from_pretrained(
         model_id,
         revision=model_rev,
         trust_remote_code=trust_remote,
@@ -495,32 +512,68 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
         device_map="auto",
         attn_implementation="sdpa",
     )
-    model.config.use_cache = False
-    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
-    peft_config = LoraConfig(
-        r=lora_cfg["r"],
-        lora_alpha=lora_cfg["lora_alpha"],
-        lora_dropout=lora_cfg.get("lora_dropout", 0.05),
-        target_modules=lora_cfg["target_modules"],
-        task_type="CAUSAL_LM",
-        bias="none",
-    )
+    base_model.config.use_cache = False
+    base_model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+    init_adapter = train_cfg.get("init_adapter_path")
+    if init_adapter:
+        adapter_path = Path(str(init_adapter))
+        if not adapter_path.is_dir():
+            raise SystemExit(
+                f"initial SFT adapter not found at {adapter_path}; "
+                "stage the pinned v3 adapter before training."
+            )
+        adapter_weights = adapter_path / "adapter_model.safetensors"
+        expected_hash = train_cfg.get("init_adapter_sha256")
+        if expected_hash:
+            if not adapter_weights.is_file():
+                raise SystemExit(f"initial SFT adapter weights not found at {adapter_weights}")
+            actual_hash = _sha256_file(adapter_weights)
+            if actual_hash != expected_hash:
+                raise SystemExit(
+                    f"initial SFT adapter hash differs: expected {expected_hash}, "
+                    f"got {actual_hash}"
+                )
+        model = PeftModel.from_pretrained(base_model, str(adapter_path), is_trainable=True)
+        assert_adapter_parity(model.peft_config["default"], lora_cfg, adapter_path)
+        peft_config = None
+        continued_adapter = True
+        print(f"[train_sft] continuing adapter in place from {adapter_path}")
+    else:
+        model = base_model
+        peft_config = LoraConfig(
+            r=lora_cfg["r"],
+            lora_alpha=lora_cfg["lora_alpha"],
+            lora_dropout=lora_cfg.get("lora_dropout", 0.05),
+            target_modules=lora_cfg["target_modules"],
+            task_type="CAUSAL_LM",
+            bias="none",
+        )
+        continued_adapter = False
     output_dir = Path(train_cfg["output_dir"])
     sft_args, dropped_sft_kwargs = build_sft_config(train_cfg, output_dir, use_bf16)
     if dropped_sft_kwargs:
         print(f"[train_sft] WARNING: SFTConfig ignores unsupported args: {dropped_sft_kwargs}")
+    trainer_kwargs = {
+        "model": model,
+        "args": sft_args,
+        "train_dataset": Dataset.from_list(train_rows),
+        "eval_dataset": Dataset.from_list(val_rows),
+        "processing_class": tokenizer,
+    }
+    if peft_config is not None:
+        trainer_kwargs["peft_config"] = peft_config
     trainer = SFTTrainer(
-        model=model,
-        args=sft_args,
-        train_dataset=Dataset.from_list(train_rows),
-        eval_dataset=Dataset.from_list(val_rows),
-        processing_class=tokenizer,
-        peft_config=peft_config,
+        **trainer_kwargs,
     )
     template_swapped = trainer.chat_template is not None
     (output_dir / "resolved_config.yaml").write_text(
         yaml.safe_dump(
-            {"train": train_cfg, "model": model_cfg, "lora": lora_cfg, "data": resolved["data"]},
+            {
+                "train": train_cfg,
+                "model": model_cfg,
+                "lora": lora_cfg,
+                "data": resolved["data"],
+            },
             sort_keys=True,
         ),
         encoding="utf-8",
@@ -558,6 +611,8 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
     record = {
         "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)),
         "resumed": resumed,
+        "continued_adapter_in_place": continued_adapter,
+        "init_adapter_path": str(train_cfg.get("init_adapter_path", "")),
         "model_id": model_id,
         "model_rev": model_rev,
         "prompt_rev": model_cfg.get("prompt_rev"),

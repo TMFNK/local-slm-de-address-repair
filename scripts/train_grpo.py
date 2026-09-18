@@ -7,11 +7,12 @@ Dry run (no GPU, no downloads, no Drive — safe anywhere):
     uv run python scripts/train_grpo.py --config configs/train_grpo.yaml --dry-run
 
 What the run does: starts from the frozen v3 LoRA adapter, rolls out groups
-of 4 answers per dirty record at temperature 0.7, and rewards them with
-``rewards.reward_for_training`` (structure + per-field repair - damage -
-fills - additions + honest review, clipped to [0, 1]). Training rows are
-dirty-needs-repair train rows only (seeded shuffle, first N) — no-op rows
-teach nothing and are excluded by construction.
+of 4 answers per dirty record at temperature 0.5 (the Phase 2 gate value),
+and rewards them with ``rewards.reward_for_training`` (format gate, then
+per-field repair minus damage / fills / additions / wrong dirty, clipped).
+Training rows are dirty-needs-repair train rows only (seeded shuffle, first
+N) — no-op rows teach nothing and are excluded by construction. Selected
+train ids that also appear in the frozen test split abort the run.
 
 Checkpoint choice (plan step 6 rule): post-hoc scoring of retained
 checkpoints on a val sample, winner = max mean(review_precision, 1-damage,
@@ -49,9 +50,7 @@ from addr_repair.scorer import FIELDS
 V3_ADAPTER_HASH = "7103451b9cc916920c59e5d68e8c3ada852b294be5eab55a0d1a9abdc77ec712"
 
 
-def select_grpo_rows(
-    pairs: list[dict], n: int, seed: int
-) -> tuple[list[dict], dict]:
+def select_grpo_rows(pairs: list[dict], n: int, seed: int) -> tuple[list[dict], dict]:
     """Pick hard train rows: dirty differs from gold, seeded shuffle, first n.
 
     No-op rows (dirty already equals gold everywhere) carry no repair signal
@@ -83,6 +82,17 @@ def select_grpo_rows(
         "seed": seed,
     }
     return rows, stats
+
+
+def assert_no_test_overlap(rows: list[dict], test_ids: set[str]) -> None:
+    """Abort if any selected GRPO train id is in the frozen test split."""
+    leaked = sorted({row["id"] for row in rows} & test_ids)
+    if leaked:
+        preview = ", ".join(leaked[:8])
+        extra = f" (+{len(leaked) - 8} more)" if len(leaked) > 8 else ""
+        raise SystemExit(
+            f"{len(leaked)} GRPO train ids are in the frozen test split: {preview}{extra}"
+        )
 
 
 def _completion_to_text(completion) -> str:
@@ -135,7 +145,7 @@ def build_grpo_config(train_cfg: dict, output_dir: Path):
         "max_steps": train_cfg.get("max_steps", 150),
         "bf16": bool(train_cfg.get("bf16", False)),
         "fp16": bool(train_cfg.get("fp16", True)),
-        "temperature": train_cfg.get("temperature", 0.7),
+        "temperature": train_cfg.get("temperature", 0.5),
         "num_generations": train_cfg.get("num_generations", 4),
         "max_completion_length": train_cfg.get("max_completion_length", 512),
         "beta": train_cfg.get("beta", 0.01),
@@ -158,18 +168,26 @@ def run_dry_run(resolved: dict) -> int:
     train_sft.assert_prompt_parity(resolved)
     train_pairs, train_manifest = train_sft.load_split_pairs(resolved, "train")
     val_pairs, val_manifest = train_sft.load_split_pairs(resolved, "val")
+    test_pairs, _test_manifest = train_sft.load_split_pairs(resolved, "test")
     train_cfg = resolved["train"]
     _rows, stats = select_grpo_rows(
         train_pairs, int(train_cfg.get("train_rows", 1500)), int(train_cfg.get("train_seed", 7))
     )
+    assert_no_test_overlap(_rows, {pair["id"] for pair in test_pairs})
     grpo_args, dropped = build_grpo_config(train_cfg, Path(train_cfg["output_dir"]))
     prompts_per_step = (
         train_cfg["per_device_train_batch_size"] * train_cfg["gradient_accumulation_steps"]
     )
     print("[train_grpo] DRY RUN — no GPU, no downloads, no writes")
-    print(f"[train_grpo] model={resolved['model']['model_id']} rev={resolved['model']['model_rev']}")
-    print(f"[train_grpo] init_adapter={train_cfg.get('init_adapter_path')} (staged by notebook; not checked here)")
-    print(f"[train_grpo] prompt_rev={resolved['model']['prompt_rev']} (code {train_sft.PRODUCTION_PROMPT_REV})")
+    print(
+        f"[train_grpo] model={resolved['model']['model_id']} rev={resolved['model']['model_rev']}"
+    )
+    print(
+        f"[train_grpo] init_adapter={train_cfg.get('init_adapter_path')} (staged by notebook; not checked here)"
+    )
+    print(
+        f"[train_grpo] prompt_rev={resolved['model']['prompt_rev']} (code {train_sft.PRODUCTION_PROMPT_REV})"
+    )
     print(
         f"[train_grpo] train n={len(train_pairs)} hash={train_manifest['records_sha256'][:16]} "
         f"val n={len(val_pairs)} hash={val_manifest['records_sha256'][:16]}"
@@ -178,6 +196,7 @@ def run_dry_run(resolved: dict) -> int:
         f"[train_grpo] grpo rows: hard={stats['hard_pairs']}/{stats['train_pairs']} "
         f"picked={stats['picked']} seed={stats['seed']}"
     )
+    print(f"[train_grpo] test overlap: none (n_test={len(test_pairs)})")
     print(f"[train_grpo] reward weights={json.dumps(WEIGHTS, sort_keys=True)}")
     print(
         f"[train_grpo] group={grpo_args.num_generations} temp={grpo_args.temperature} "
@@ -243,9 +262,11 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
 
     train_pairs, train_manifest = train_sft.load_split_pairs(resolved, "train")
     val_pairs, val_manifest = train_sft.load_split_pairs(resolved, "val")
+    test_pairs, _test_manifest = train_sft.load_split_pairs(resolved, "test")
     rows, stats = select_grpo_rows(
         train_pairs, int(train_cfg.get("train_rows", 1500)), int(train_cfg.get("train_seed", 7))
     )
+    assert_no_test_overlap(rows, {pair["id"] for pair in test_pairs})
 
     adapter_path = Path(str(train_cfg.get("init_adapter_path", "")))
     if not adapter_path.is_dir():
@@ -260,7 +281,10 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
     use_fp16 = bool(train_cfg.get("fp16", True))
     dtype = torch.bfloat16 if use_bf16 else (torch.float16 if use_fp16 else torch.float32)
     tokenizer = transformers.AutoTokenizer.from_pretrained(
-        model_id, revision=model_rev, trust_remote_code=trust_remote, use_fast=True,
+        model_id,
+        revision=model_rev,
+        trust_remote_code=trust_remote,
+        use_fast=True,
     )
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -289,7 +313,8 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
         processing_class=tokenizer,
     )
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "resolved_config.yaml").write_text(        yaml.safe_dump(
+    (output_dir / "resolved_config.yaml").write_text(
+        yaml.safe_dump(
             {"train": train_cfg, "model": model_cfg, "lora": lora_cfg, "data": resolved["data"]},
             sort_keys=True,
         ),
@@ -312,8 +337,16 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
     val_started = time.perf_counter()
     for checkpoint in train_sft._iter_candidates(output_dir):
         metrics = train_sft.score_candidate(
-            checkpoint, output_dir, model_id, model_rev, trust_remote, use_bf16,
-            tokenizer, val_pairs, val_samples, val_gen_tokens,
+            checkpoint,
+            output_dir,
+            model_id,
+            model_rev,
+            trust_remote,
+            use_bf16,
+            tokenizer,
+            val_pairs,
+            val_samples,
+            val_gen_tokens,
         )
         if metrics is None:
             continue
@@ -323,7 +356,7 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
     winner_name, winner_metrics = train_sft.pick_best(scored)
 
     record = {
-        "mode": "grpo-v4",
+        "mode": "grpo-v5",
         "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)),
         "model_id": model_id,
         "model_rev": model_rev,
@@ -365,15 +398,23 @@ def run_training(resolved: dict, resume: bool = False) -> dict:
     )
     (output_dir / "selection.json").write_text(
         json.dumps(
-            {"winner": winner_name, "selection_score": train_sft.selection_score(winner_metrics),
-             "metrics": winner_metrics, "rule": record["selection_rule"]},
-            ensure_ascii=False, indent=2, sort_keys=True,
+            {
+                "winner": winner_name,
+                "selection_score": train_sft.selection_score(winner_metrics),
+                "metrics": winner_metrics,
+                "rule": record["selection_rule"],
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
         )
         + "\n",
         encoding="utf-8",
     )
-    print(f"[train_grpo] done in {train_seconds}s; winner={winner_name} "
-          f"score={train_sft.selection_score(winner_metrics)} -> {output_dir}")
+    print(
+        f"[train_grpo] done in {train_seconds}s; winner={winner_name} "
+        f"score={train_sft.selection_score(winner_metrics)} -> {output_dir}"
+    )
     return record
 
 
@@ -382,7 +423,8 @@ def main() -> None:
     parser.add_argument("--config", default="configs/train_grpo.yaml")
     parser.add_argument("--dry-run", action="store_true", help="Log plan without training.")
     parser.add_argument(
-        "--resume", action="store_true",
+        "--resume",
+        action="store_true",
         help="Continue from the latest checkpoint in output_dir (Colab recovery).",
     )
     args = parser.parse_args()

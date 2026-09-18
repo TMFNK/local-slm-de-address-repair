@@ -270,6 +270,45 @@ is left empty and sent to review.
 committed per-system metrics and freeze metadata are the result boundary;
 older UUID-only and superseded pair-grouped runs remain historical only.
 
+## Targeted name/locality SFT v5p1 (2026-09-18, no frozen eval yet)
+
+One bounded epoch from the frozen clean-gold-v3 adapter, on the audited
+targeted view only: every pinned-train pair where `name` or `locality`
+differs (2,798 rows) plus every all-clean train pair as damage control
+(274 rows). Validation and test stay pinned. Frozen eval has not been run
+for this artifact.
+
+| Item | Value |
+|---|---|
+| Commit | `e966c0cbd6819abe2a6ff993187b9f268f42b70a`, fresh run (`resumed: false`) |
+| GPU | Tesla T4, capability 7.5, torch 2.14.0+cu130, fp16, seed 7 |
+| Source adapter | clean-gold-v3 `checkpoint-800`, SHA-256 `7103451b…77ec712` |
+| Targeted train | 3,072 rows, records hash `78c1a680e9a854ab4b142833faa16c699db047a3469a0b909aaa900ac17b22f9` |
+| Val / test | `e331cb5ac908827b00698b45aefa8f0f8f13df1d9e476f5ab7a384d21b8008bf` / `160eec15661de36d45265e03a053244311187d077b7c00e4d571d2294250350c` |
+| Winner | `checkpoint-150`, selection score `0.7626` (runner-up `checkpoint-192` at `0.7609`) |
+| Winner adapter SHA-256 | `3494ac23b69554e724c83c72d949f7352da2584cb53c1ad28eb6b34cc6a09397` |
+| Winner val metrics | review precision `1.0`, damage `0.0391`, repair F1 `0.3269` (P `0.6788` / R `0.2153`), schema `0.995`, contract `0.965` |
+| Train / scoring time | 1,109.6 s train, 5,231.4 s val scoring |
+| Records | `evals/sft-v5p1/selection.json`, `training_record.json`, `resolved_config.yaml` |
+| Local GGUF | `models/sft-Q4_K_M-targeted-name-locality-v5p1.gguf` (688,065,824 bytes, SHA-256 `1d45c3d86d8e33c03967bcebb46d15a606abfef9e91538e75f3b0e7f1cd1fe08`) |
+| Drive root | `/content/drive/MyDrive/local-slm-de-address-repair/checkpoints-sft-targeted-name-locality-v5p1` |
+| Notebook | vault `docs/collab notebook/colab_sft_targeted_name_locality_v5p1.ipynb` |
+
+Do not use the quarantined v1 Drive dir
+(`checkpoints-sft-targeted-name-locality-v1`, with `checkpoint-300` /
+`checkpoint-313`): that run trained on the full 5,000-row split after the
+v5 notebook left `data_targeted_name_locality.yaml` pointing at
+`data/manifests/`. It is not a targeted artifact.
+
+Evaluate exactly like v3 when ready, with the v5p1 GGUF and adapter hash:
+
+```bash
+uv run python scripts/evaluate_local.py --system sft \
+  --gguf models/sft-Q4_K_M-targeted-name-locality-v5p1.gguf \
+  --model-rev 3494ac23b69554e724c83c72d949f7352da2584cb53c1ad28eb6b34cc6a09397 \
+  --manifest data/manifests/test.json --out-dir evals/frozen-test-v5p1
+```
+
 ## Pin record
 
 Record Python, TRL, Transformers, PEFT, `llama.cpp` revision, MiniCPM5

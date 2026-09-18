@@ -1,0 +1,71 @@
+data:
+  clean_file: clean.csv
+  control_rule: all fields equal between dirty and gold
+  dirty_file: dirty.csv
+  id_field: id
+  manifests_dir: data/manifests/targeted-name-locality-v1
+  raw_dir: data/raw
+  source_config: configs/data.yaml
+  source_train_manifest: data/manifests/train.json
+  target_fields:
+  - name
+  - locality
+lora:
+  assistant_only_loss: true
+  lora_alpha: 32
+  lora_dropout: 0.05
+  r: 16
+  seed: 7
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+model:
+  chat_template_mode: no-think
+  decode:
+    max_tokens: 512
+    seed: 7
+    temperature: 0.0
+    top_p: 1.0
+  gguf_file: MiniCPM5-1B-Q4_K_M.gguf
+  gguf_repo: openbmb/MiniCPM5-1B-GGUF
+  gguf_rev: 3d55fac80935ae6456986ad2384b5cbcc4d6c948
+  llama_cpp_rev: b31b71f3a076bfc4278daad442203a9c51c6e676
+  local_gguf: models/MiniCPM5-1B-Q4_K_M.gguf
+  model_id: openbmb/MiniCPM5-1B
+  model_rev: 87179e5c1f455ef22e6223592d2d61351b525bfc
+  n_ctx: 2048
+  prompt_rev: v2
+  quant: Q4_K_M
+  server_url: http://127.0.0.1:8080
+train:
+  base_config: configs/model.yaml
+  bf16: false
+  data_config: configs/data_targeted_name_locality.yaml
+  eval_steps: 150
+  eval_strategy: steps
+  fp16: true
+  gradient_accumulation_steps: 8
+  init_adapter_path: /content/drive/MyDrive/local-slm-de-address-repair/adapters/clean-gold-v3
+  init_adapter_sha256: 7103451b9cc916920c59e5d68e8c3ada852b294be5eab55a0d1a9abdc77ec712
+  learning_rate: 5.0e-05
+  logging_dir: /content/drive/MyDrive/local-slm-de-address-repair/logs-sft-targeted-name-locality-v5p1
+  logging_steps: 25
+  lora_config: configs/lora.yaml
+  lr_scheduler_type: cosine
+  max_seq_length: 2048
+  num_train_epochs: 1
+  output_dir: /content/drive/MyDrive/local-slm-de-address-repair/checkpoints-sft-targeted-name-locality-v5p1
+  per_device_train_batch_size: 2
+  report_to: none
+  save_steps: 150
+  save_total_limit: 2
+  seed: 7
+  trust_remote_code: false
+  val_gen_max_tokens: 512
+  val_samples: 200
+  warmup_steps: 10

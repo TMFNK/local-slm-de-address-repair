@@ -1,0 +1,33 @@
+# Bounded targeted SFT from the frozen clean-gold-v3 adapter.
+# Stage the adapter at this path in Colab before training.
+base_config: "configs/model.yaml"
+lora_config: "configs/lora.yaml"
+data_config: "configs/data_targeted_name_locality.yaml"
+
+init_adapter_path: "/content/drive/MyDrive/local-slm-de-address-repair/adapters/clean-gold-v3"
+init_adapter_sha256: "7103451b9cc916920c59e5d68e8c3ada852b294be5eab55a0d1a9abdc77ec712"
+output_dir: "/content/drive/MyDrive/local-slm-de-address-repair/checkpoints-sft-targeted-name-locality-v1"
+logging_dir: "/content/drive/MyDrive/local-slm-de-address-repair/logs-sft-targeted-name-locality-v1"
+
+# One bounded pass over the 3,072-row targeted view.
+per_device_train_batch_size: 2
+gradient_accumulation_steps: 8
+learning_rate: 5.0e-5
+lr_scheduler_type: cosine
+warmup_steps: 10
+num_train_epochs: 1
+bf16: false
+fp16: true
+max_seq_length: 2048
+eval_strategy: steps
+eval_steps: 150
+save_steps: 150
+save_total_limit: 2
+logging_steps: 25
+report_to: none
+seed: 7
+trust_remote_code: false
+
+# Validation selection remains on the original pinned val manifest.
+val_samples: 200
+val_gen_max_tokens: 512

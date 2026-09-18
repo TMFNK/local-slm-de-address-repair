@@ -1,0 +1,47 @@
+{
+  "best_full_reward": {
+    "additions": 4,
+    "damage": 0.0131,
+    "f1": 0.3701,
+    "fills": 0,
+    "missed": 45,
+    "precision": 0.8254,
+    "recall": 0.2385,
+    "review_flags": 113,
+    "wrong_dirty": 7
+  },
+  "best_shape_only": {
+    "additions": 6,
+    "damage": 0.0262,
+    "f1": 0.3368,
+    "fills": 0,
+    "missed": 44,
+    "precision": 0.7164,
+    "recall": 0.2202,
+    "review_flags": 113,
+    "wrong_dirty": 12
+  },
+  "gguf": "models/sft-Q4_K_M-clean-gold-v3.gguf",
+  "manifest": "data/manifests/val.json",
+  "model_rev": "7103451b9cc916920c59e5d68e8c3ada852b294be5eab55a0d1a9abdc77ec712",
+  "n_records": 100,
+  "samples_per_record": 4,
+  "single_answer": {
+    "additions": 6,
+    "f1": 0.3427,
+    "fills": 0,
+    "missed": 44,
+    "precision": 0.7206,
+    "recall": 0.2248,
+    "review_flags": 113,
+    "wrong_dirty": 11
+  },
+  "spread": {
+    "groups_with_spread": 24,
+    "max": 0.38,
+    "mean": 0.152,
+    "min": 0.02,
+    "stdev": 0.0897
+  },
+  "temperature": 0.5
+}
