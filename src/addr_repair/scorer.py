@@ -146,6 +146,8 @@ def score_records(rows: list[dict]) -> dict:
         if flagged:
             review_records += 1
         for field in flagged:
+            if not isinstance(field, str):
+                continue
             if field not in field_metrics:
                 continue
             review_total += 1

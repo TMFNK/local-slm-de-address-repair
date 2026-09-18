@@ -270,13 +270,12 @@ is left empty and sent to review.
 committed per-system metrics and freeze metadata are the result boundary;
 older UUID-only and superseded pair-grouped runs remain historical only.
 
-## Targeted name/locality SFT v5p1 (2026-09-18, no frozen eval yet)
+## Targeted name/locality SFT v5p1 (2026-09-18, frozen eval complete)
 
 One bounded epoch from the frozen clean-gold-v3 adapter, on the audited
 targeted view only: every pinned-train pair where `name` or `locality`
 differs (2,798 rows) plus every all-clean train pair as damage control
-(274 rows). Validation and test stay pinned. Frozen eval has not been run
-for this artifact.
+(274 rows). Validation and test stayed pinned.
 
 | Item | Value |
 |---|---|
@@ -300,7 +299,7 @@ Do not use the quarantined v1 Drive dir
 v5 notebook left `data_targeted_name_locality.yaml` pointing at
 `data/manifests/`. It is not a targeted artifact.
 
-Evaluate exactly like v3 when ready, with the v5p1 GGUF and adapter hash:
+The v5p1 evaluation command, using the same frozen path as v3, was:
 
 ```bash
 uv run python scripts/evaluate_local.py --system sft \
@@ -308,6 +307,27 @@ uv run python scripts/evaluate_local.py --system sft \
   --model-rev 3494ac23b69554e724c83c72d949f7352da2584cb53c1ad28eb6b34cc6a09397 \
   --manifest data/manifests/test.json --out-dir evals/frozen-test-v5p1
 ```
+
+The model run wrote all 2,000 audit rows, but scoring initially stopped on
+row 233 because the model returned change objects in `needs_review` instead
+of field-name strings. The schema correctly rejected that row. The scorer
+now skips non-string review entries without converting them into review
+fields. A regression test covers the malformed shape, and the preserved
+audit was rescored offline without contacting the server.
+
+The offline result boundary is
+`evals/frozen-test-v5p1/{sft/metrics.json,freeze.json}`. The audit contained
+one malformed review row, zero server errors, and passed all manifest,
+record-order, dirty-payload, and input-fingerprint checks. Results:
+
+- repair precision `0.2619`, recall `0.1354`, F1 `0.1785`;
+- damage `0.1688`, inventions `5`, unsupported additions `288`;
+- schema / semantic / contract validity `0.796 / 0.393 / 0.393`;
+- review precision `0.9743`, review field rate `0.1789`, record coverage
+  `0.675`;
+- median / p95 record latency `2,093.1 / 3,191.9 ms`.
+
+This result is experimental and does not replace the shipped v3 result.
 
 ## Pin record
 

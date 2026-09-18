@@ -33,6 +33,33 @@ def test_scorer_counts_repair_and_damage():
     assert metrics["by_field"]["road"]["repair_recall"] == 1.0
 
 
+def test_scorer_skips_non_string_review_entries():
+    base = {
+        "name": "x",
+        "road": "Musterstraße",
+        "house_number": "12",
+        "postcode": "80331",
+        "locality": "München",
+        "country_code": "DE",
+    }
+    metrics = score_records(
+        [
+            {
+                "dirty": dict(base),
+                "gold": dict(base),
+                "pred": dict(base),
+                "needs_review": [{"field": "road"}, "road"],
+                "schema_ok": False,
+                "semantic_ok": False,
+                "parsed": True,
+            }
+        ]
+    )
+    assert metrics["n"] == 1
+    assert metrics["schema_validity"] == 0.0
+    assert metrics["by_field"]["road"]["review_flagged"] == 1
+
+
 def test_scorer_counts_abstention_and_review_for_missing_input():
     dirty = {
         "name": "x",

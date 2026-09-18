@@ -14,6 +14,12 @@ and one rejected GRPO follow-up.
   contract `0.43`, review precision `0.989`. Source file:
   `evals/frozen-test-v4/sft/metrics.json`. Rejected on damage with
   falling F1; the shipped model stays v3.
+- Targeted name/locality SFT v5p1: F1 `0.1785`, damage `0.1688`, 5 fills,
+  288 unsupported additions, schema `0.796`, semantic/contract validity
+  `0.393/0.393`, review precision `0.9743`. The result was rescored offline
+  from its intact 2,000-row audit after fixing a scorer crash on one
+  schema-invalid `needs_review` shape. It is experimental; v3 remains
+  shipped.
 - Runtime probes: base load `1,561.8 ms` / peak RSS `810.6 MB`; v3 SFT
   load `661.7 ms` / peak RSS `816.8 MB`; rules evaluator RSS `31.4 MB`
 - Per-system source files:
