@@ -1,6 +1,6 @@
 # MiniCPM5 German Address Repair
 
-[![DOI](https://zenodo.org/badge/1361261201.svg)](https://doi.org/10.5281/zenodo.22834786)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22834786.svg)](https://doi.org/10.5281/zenodo.22834786)
 
 Fine-tune a small language model to repair messy German named-address records
 without silently inventing information.
